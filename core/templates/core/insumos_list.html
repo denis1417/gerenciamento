@@ -19,7 +19,6 @@
                 <tr>
                     <th>Nome</th>
                     <th>Quantidade</th>
-                    <th>Unidade</th>
                     <th class="text-center">Ações</th>
                 </tr>
             </thead>
@@ -28,7 +27,6 @@
                 <tr>
                     <td>{{ i.nome }}</td>
                     <td>{{ i.formatar_quantidade }}</td>
-                    <td>{{ i.get_unidade_base_display }}</td>
                     <td class="text-center">
                         <a href="{% url 'insumos_edit' i.id %}" class="btn btn-warning btn-sm btn-hover-3d">Editar</a>
                         <a href="{% url 'insumos_delete' i.id %}" class="btn btn-danger btn-sm btn-hover-3d">Deletar</a>
@@ -36,7 +34,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4" class="text-center text-muted">Nenhum insumo cadastrado.</td>
+                    <td colspan="3" class="text-center text-muted">Nenhum insumo cadastrado.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -45,7 +43,6 @@
 </div>
 
 <style>
-/* Botões com efeito 3D */
 .btn-hover-3d {
     font-size: 0.85rem;
     padding: 0.4rem 0.9rem;
@@ -65,4 +62,3 @@
 }
 </style>
 {% endblock %}
-

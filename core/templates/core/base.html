@@ -6,14 +6,111 @@
     <title>{% block title %}Confeitaria{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    {% block extra_css %}{% endblock %}
+    <style>
+        /* ===============================
+           BOTÃO DE ACESSIBILIDADE
+        =============================== */
+        #acessibilidade-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #0d6efd;
+            color: #fff;
+            border-radius: 50%;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        #acessibilidade-btn:hover { transform: scale(1.1); }
+
+        #acessibilidade-menu {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 9998;
+            padding: 10px;
+            width: 200px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            pointer-events: none;
+        }
+        #acessibilidade-menu.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        /* ===============================
+           MODO ALTO CONTRASTE
+        =============================== */
+        .alto-contraste {
+            background-color: #000 !important;
+            color: #fff !important;
+        }
+        .alto-contraste a {
+            color: #0ff !important;
+        }
+        .alto-contraste nav.navbar {
+            background-color: #000 !important;
+            border-bottom: 1px solid #0ff !important;
+        }
+        .alto-contraste nav a,
+        .alto-contraste .navbar-brand {
+            color: #0ff !important;
+        }
+        .alto-contraste footer {
+            background-color: #000 !important;
+            color: #0ff !important;
+            border-top: 1px solid #0ff;
+        }
+        .alto-contraste footer a {
+            color: #0ff !important;
+        }
+        .alto-contraste .card,
+        .alto-contraste .card-body {
+            background-color: #000 !important;
+            color: #fff !important;
+            border: 1px solid #0ff !important;
+        }
+        .alto-contraste .btn {
+            background-color: #0ff !important;
+            color: #000 !important;
+            border: none !important;
+        }
+        .alto-contraste .btn:hover {
+            background-color: #fff !important;
+            color: #000 !important;
+        }
+        .alto-contraste h1,
+        .alto-contraste h2,
+        .alto-contraste h3,
+        .alto-contraste h4,
+        .alto-contraste h5 {
+            color: #0ff !important;
+        }
+        .alto-contraste hr {
+            border-top: 1px solid #0ff !important;
+        }
+    </style>
 </head>
 <body>
 
-<!-- Navbar topo -->
+<!-- Navbar -->
 <nav class="navbar navbar-dark bg-primary shadow-sm">
     <div class="container-fluid">
         <a class="navbar-brand" href="{% url 'home' %}">🍰 Confeitaria Silvia</a>
-
         {% if user.is_authenticated %}
             <ul class="navbar-nav ms-auto d-flex flex-row align-items-center">
                 {% if is_admin %}
@@ -24,9 +121,7 @@
                     </li>
                 {% endif %}
                 <li class="nav-item">
-                    <a class="nav-link text-white" href="{% url 'logout' %}">
-                        🚪 Sair
-                    </a>
+                    <a class="nav-link text-white" href="{% url 'logout' %}">🚪 Sair</a>
                 </li>
             </ul>
         {% endif %}
@@ -38,12 +133,72 @@
     {% block content %}{% endblock %}
 </main>
 
+<!-- Footer -->
 <footer class="text-center py-3 bg-light mt-4 rounded">
-    <p> Confeitaria Silvia - Sistema de Gestão</p>
+    <p>Confeitaria Silvia - Sistema de Gestão</p>
 </footer>
 
+<!-- Botão e menu de acessibilidade -->
+<div id="acessibilidade-btn" title="Acessibilidade">
+    <i class="bi bi-universal-access" style="font-size: 1.5rem;"></i>
+</div>
+<div id="acessibilidade-menu">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <span>Acessibilidade</span>
+        <button id="fechar-menu" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+    <hr class="my-2">
+    <button id="libras-btn" class="btn btn-outline-primary btn-sm mb-2 w-100">
+        <i class="bi bi-hand-thumbs-up"></i> Libras
+    </button>
+    <button id="contraste-btn" class="btn btn-outline-dark btn-sm mb-2 w-100">
+        <i class="bi bi-circle-half"></i> Alto Contraste
+    </button>
+    <button id="fonte-btn" class="btn btn-outline-secondary btn-sm mb-2 w-100">
+        <i class="bi bi-text-paragraph"></i> Aumentar Fonte
+    </button>
+    <button id="fonte-dim-btn" class="btn btn-outline-secondary btn-sm w-100">
+        <i class="bi bi-text-paragraph"></i> Diminuir Fonte
+    </button>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const btnAcess = document.getElementById('acessibilidade-btn');
+    const menuAcess = document.getElementById('acessibilidade-menu');
+    const btnFechar = document.getElementById('fechar-menu');
+    const body = document.body;
+
+    if (btnAcess && menuAcess && btnFechar) {
+        btnAcess.addEventListener('click', () => menuAcess.classList.toggle('show'));
+        btnFechar.addEventListener('click', () => menuAcess.classList.remove('show'));
+        document.addEventListener('click', e => {
+            if (!menuAcess.contains(e.target) && !btnAcess.contains(e.target)) {
+                menuAcess.classList.remove('show');
+            }
+        });
+    }
+
+    const btnLibras = document.getElementById('libras-btn');
+    if (btnLibras) btnLibras.addEventListener('click', () => alert("Ativar intérprete de Libras (placeholder)"));
+
+    const btnContraste = document.getElementById('contraste-btn');
+    if (btnContraste) btnContraste.addEventListener('click', () => body.classList.toggle('alto-contraste'));
+
+    const btnFonte = document.getElementById('fonte-btn');
+    const btnFonteDim = document.getElementById('fonte-dim-btn');
+    if (btnFonte) btnFonte.addEventListener('click', () => {
+        let size = parseInt(window.getComputedStyle(body).fontSize);
+        body.style.fontSize = (size + 2) + "px";
+    });
+    if (btnFonteDim) btnFonteDim.addEventListener('click', () => {
+        let size = parseInt(window.getComputedStyle(body).fontSize);
+        body.style.fontSize = (size - 2) + "px";
+    });
+});
+</script>
 </body>
 </html>
-
-

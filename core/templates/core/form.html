@@ -41,18 +41,34 @@
                 Informações
             </div>
             <div class="card-body">
-                {% for field in form %}
+
+                <!-- Campo quantidade -->
+                {% if form.quantidade %}
                     <div class="mb-3">
-                        {{ field.label_tag }}
-                        {{ field }}
-                        {% if field.help_text %}
-                            <small class="text-muted">{{ field.help_text }}</small>
-                        {% endif %}
-                        {% for error in field.errors %}
+                        {{ form.quantidade.label_tag }}
+                        {{ form.quantidade }}
+                        {% for error in form.quantidade.errors %}
                             <div class="text-danger small">{{ error }}</div>
                         {% endfor %}
                     </div>
+                {% endif %}
+
+                <!-- Restante dos campos -->
+                {% for field in form %}
+                    {% if field.name != 'quantidade' %}
+                        <div class="mb-3">
+                            {{ field.label_tag }}
+                            {{ field }}
+                            {% if field.help_text %}
+                                <small class="text-muted">{{ field.help_text }}</small>
+                            {% endif %}
+                            {% for error in field.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
                 {% endfor %}
+
             </div>
         </div>
 
@@ -104,6 +120,3 @@ form input:focus, form select:focus, form textarea:focus {
 }
 </style>
 {% endblock %}
-
-
-

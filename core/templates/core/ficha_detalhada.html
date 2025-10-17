@@ -1,0 +1,122 @@
+{% extends "core/base.html" %}
+
+{% block title %}Ficha Técnica - {{ ficha.produto.catalogo.nome }}
+{% endblock %}
+
+{% block content %}
+<div class="container my-5 p-0" style="max-width: 900px;">
+    <div class="card shadow border-0 p-4">
+
+        <!-- Cabeçalho -->
+        <div class="text-center mb-4">
+            <h2 class="fw-bold text-primary">FICHA TÉCNICA</h2>
+            <h4 class="mt-2">{{ ficha.produto.catalogo.nome }}</h4>
+        </div>
+
+        <!-- Informações básicas do produto -->
+        <div class="mb-3">
+            <p><strong>Produto:</strong> {{ ficha.produto.catalogo.nome }}</p>
+            <p><strong>Peso:</strong> {{ ficha.peso_produto }} g</p>
+            <p><strong>Assinado por:</strong> {{ ficha.assinado_por }}</p>
+            <p><strong>Data:</strong> {{ ficha.data_assinatura|date:"d/m/Y H:i" }}</p>
+        </div>
+
+        <!-- Informações gerais -->
+        <table class="table table-bordered mb-4" style="border-width:2px;">
+            <tr class="table-secondary">
+                <th style="width:20%;">Categoria</th>
+                <td style="width:30%;">{{ ficha.categoria }}</td>
+                <th style="width:20%;">Tempo de preparo</th>
+                <td style="width:30%;">{{ ficha.tempo_preparo }} minutos</td>
+            </tr>
+            <tr class="table-light">
+                <th>Rendimento</th>
+                <td>{{ ficha.rendimento }}</td>
+                <th>Perda aceitável</th>
+                <td>{{ ficha.perda_aceitavel }}</td>
+            </tr>
+            <tr class="table-secondary">
+                <th>Textura</th>
+                <td>{{ ficha.textura }}</td>
+                <th>Calorias</th>
+                <td>{{ ficha.calorias }} Kcal</td>
+            </tr>
+            <tr class="table-light">
+                <th>Validade</th>
+                <td>{{ ficha.validade }} dias</td>
+                <th>Armazenamento</th>
+                <td>{{ ficha.armazenamento }}</td>
+            </tr>
+            <tr class="table-light">
+                <th>Data de Criação</th>
+                <td colspan="3">{{ ficha.data_criacao|date:"d/m/Y H:i" }}</td>
+            </tr>
+        </table>
+
+        <!-- Insumos utilizados -->
+        <h5 class="fw-bold mb-2 text-primary">Ingredientes Utilizados</h5>
+        <table class="table table-bordered table-striped mb-4">
+            <thead class="table-dark">
+                <tr>
+                    <th>Qtd</th>
+                    <th>Un</th>
+                    <th>Insumo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in ficha.ficha_insumos.all %}
+                <tr>
+                    <td>{{ item.quantidade_usada }}</td>
+                    <td>{{ item.unidade }}</td>
+                    <td>{{ item.insumo.nome }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" class="text-center text-muted">Nenhum insumo registrado.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Observações -->
+        {% if ficha.observacoes %}
+            <h5 class="fw-bold mb-2 text-primary">Observações</h5>
+            <p class="border p-2 rounded bg-light">{{ ficha.observacoes }}</p>
+        {% endif %}
+
+        <!-- Assinatura Digital -->
+        {% if ficha.assinado_por %}
+            <hr>
+            <p class="text-end mt-3">
+                <strong>Assinado digitalmente por:</strong>
+                {% if ficha.assinado_por == "Administrador" %}
+                    <span class="text-danger">Administrador</span>
+                {% else %}
+                    <span class="text-success">{{ ficha.assinado_por }}</span>
+                {% endif %}
+                <br>
+                <small>{{ ficha.data_assinatura|date:"d/m/Y H:i" }}</small>
+            </p>
+        {% endif %}
+
+        <!-- Botões -->
+        <div class="mt-4 d-flex justify-content-between">
+            <a href="{% url 'produtos_list' %}" class="btn btn-secondary">Voltar</a>
+            <button type="button" onclick="window.print()" class="btn btn-primary">Imprimir Ficha</button>
+        </div>
+
+    </div>
+</div>
+
+<style>
+@media print {
+    body * { visibility: hidden; }
+    .container, .container * { visibility: visible; }
+    .container { position: absolute; left:0; top:0; width:100%; max-width:100%; padding:0; margin:0; }
+    .btn { display: none; }
+    table { page-break-inside: avoid; border-collapse: collapse !important; }
+    th, td { border-width: 1px !important; padding: 4px !important; font-size: 12pt; }
+    h2, h4, h5 { page-break-after: avoid; }
+}
+</style>
+{% endblock %}

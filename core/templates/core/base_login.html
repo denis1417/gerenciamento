@@ -9,12 +9,172 @@
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
     {% block extra_css %}{% endblock %}
+    <style>
+        /* Botão flutuante de acessibilidade */
+        #acessibilidade-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #0d6efd;
+            color: #fff;
+            border-radius: 50%;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        #acessibilidade-btn:hover { transform: scale(1.1); }
+
+        /* Menu de acessibilidade */
+        #acessibilidade-menu {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 9998;
+            padding: 10px;
+            width: 200px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            pointer-events: none;
+        }
+        #acessibilidade-menu.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        .alto-contraste { background-color: #000 !important; color: #fff !important; }
+        .alto-contraste a { color: #0ff !important; }
+
+        /* Botão olho senha */
+        .toggle-password {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #6c757d;
+        }
+    </style>
 </head>
 <body>
-    {% block content %}{% endblock %}
+    {% block content %}
+    <!-- Exemplo de formulário de login -->
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-4">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h3 class="card-title text-center mb-4">Login</h3>
+                        <form method="POST">
+                            {% csrf_token %}
+                            <div class="mb-3 position-relative">
+                                <label for="username" class="form-label">Usuário</label>
+                                <input type="text" class="form-control" id="username" name="username" required>
+                            </div>
+                            <div class="mb-3 position-relative">
+                                <label for="password" class="form-label">Senha</label>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                                <span class="toggle-password" id="togglePassword">
+                                    <i class="bi bi-eye"></i>
+                                </span>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Entrar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endblock %}
+
+    <!-- Botão flutuante de acessibilidade -->
+    <div id="acessibilidade-btn" title="Acessibilidade">
+        <i class="bi bi-universal-access" style="font-size: 1.5rem;"></i>
+    </div>
+
+    <!-- Menu de acessibilidade -->
+    <div id="acessibilidade-menu">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span>Acessibilidade</span>
+            <button id="fechar-menu" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <hr class="my-2">
+        <button id="libras-btn" class="btn btn-outline-primary btn-sm mb-2 w-100">
+            <i class="bi bi-hand-thumbs-up"></i> Libras
+        </button>
+        <button id="contraste-btn" class="btn btn-outline-dark btn-sm mb-2 w-100">
+            <i class="bi bi-circle-half"></i> Alto Contraste
+        </button>
+        <button id="fonte-btn" class="btn btn-outline-secondary btn-sm mb-2 w-100">
+            <i class="bi bi-text-paragraph"></i> Aumentar Fonte
+        </button>
+        <button id="fonte-dim-btn" class="btn btn-outline-secondary btn-sm w-100">
+            <i class="bi bi-text-paragraph"></i> Diminuir Fonte
+        </button>
+    </div>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    {% block extra_js %}{% endblock %}
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const body = document.body;
+
+        // Acessibilidade
+        const btnAcess = document.getElementById('acessibilidade-btn');
+        const menuAcess = document.getElementById('acessibilidade-menu');
+        const btnFechar = document.getElementById('fechar-menu');
+
+        if (btnAcess && menuAcess && btnFechar) {
+            btnAcess.addEventListener('click', () => menuAcess.classList.toggle('show'));
+            btnFechar.addEventListener('click', () => menuAcess.classList.remove('show'));
+            document.addEventListener('click', e => {
+                if (!menuAcess.contains(e.target) && !btnAcess.contains(e.target)) {
+                    menuAcess.classList.remove('show');
+                }
+            });
+        }
+
+        const btnLibras = document.getElementById('libras-btn');
+        if (btnLibras) btnLibras.addEventListener('click', () => alert("Ativar intérprete de Libras (placeholder)"));
+
+        const btnContraste = document.getElementById('contraste-btn');
+        if (btnContraste) btnContraste.addEventListener('click', () => body.classList.toggle('alto-contraste'));
+
+        const btnFonte = document.getElementById('fonte-btn');
+        const btnFonteDim = document.getElementById('fonte-dim-btn');
+        if (btnFonte) btnFonte.addEventListener('click', () => {
+            let size = parseInt(window.getComputedStyle(body).fontSize);
+            body.style.fontSize = (size + 2) + "px";
+        });
+        if (btnFonteDim) btnFonteDim.addEventListener('click', () => {
+            let size = parseInt(window.getComputedStyle(body).fontSize);
+            body.style.fontSize = (size - 2) + "px";
+        });
+
+        // Mostrar/ocultar senha
+        const togglePassword = document.getElementById('togglePassword');
+        const password = document.getElementById('password');
+        if (togglePassword && password) {
+            togglePassword.addEventListener('click', () => {
+                const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+                password.setAttribute('type', type);
+                togglePassword.innerHTML = type === 'password' ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
+            });
+        }
+    });
+    </script>
 </body>
 </html>

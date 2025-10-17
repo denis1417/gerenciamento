@@ -1,92 +1,154 @@
 {% extends 'core/base.html' %}
+{% load form_tags %}
+{% load static %}
+
 {% block title %}{{ titulo }} - Confeitaria{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
 
-    <!-- Cabeçalho do formulário -->
-    <div class="mb-4 p-4 bg-white shadow-sm border rounded">
-        <h2 class="h4 fw-bold text-primary mb-2">{{ titulo }}</h2>
-        <p class="text-muted small mb-0">
-            Preencha os dados do colaborador de forma completa e organizada.
-        </p>
+    <!-- Mensagens de erro/sucesso -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Cabeçalho do Formulário -->
+    <div class="text-center mb-4">
+        <h2 class="fw-bold text-primary">{{ titulo }}</h2>
+        <p class="text-muted">Preencha todos os dados do colaborador de forma completa e organizada.</p>
     </div>
 
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
 
         <!-- Dados Pessoais -->
-        <div class="card mb-4 shadow-sm rounded">
+        <div class="card shadow-sm mb-4">
             <div class="card-header bg-primary text-white fw-bold">Dados Pessoais</div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-3 mb-3">{{ form.rc.label_tag }} {{ form.rc }}</div>
-                    <div class="col-md-4 mb-3">{{ form.nome.label_tag }} {{ form.nome }}</div>
-                    <div class="col-md-2 mb-3">{{ form.data_nascimento.label_tag }} {{ form.data_nascimento }}</div>
-                    <div class="col-md-3 mb-3">{{ form.sexo.label_tag }} {{ form.sexo }}</div>
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        {{ form.rc.label_tag }}
+                        {{ form.rc|add_class:"form-control" }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ form.nome.label_tag }}
+                        {{ form.nome|add_class:"form-control" }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.data_nascimento.label_tag }}
+                        {{ form.data_nascimento|add_class:"form-control" }}
+                    </div>
+                    <div class="col-md-3">
+                        {{ form.sexo.label_tag }}
+                        {{ form.sexo|add_class:"form-select" }}
+                    </div>
                 </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">{{ form.cpf_rg.label_tag }} {{ form.cpf_rg }}</div>
-                    <div class="col-md-6 mb-3">{{ form.funcao.label_tag }} {{ form.funcao }}</div>
+                <div class="row g-3 mt-2">
+                    <div class="col-md-6">
+                        {{ form.CPF_RG.label_tag }}
+                        {{ form.CPF_RG|add_class:"form-control" }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ form.funcao.label_tag }}
+                        {{ form.funcao|add_class:"form-control" }}
+                    </div>
                 </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">{{ form.email.label_tag }} {{ form.email }}</div>
-                    <div class="col-md-6 mb-3">{{ form.celular.label_tag }} {{ form.celular }}</div>
+                <div class="row g-3 mt-2">
+                    <div class="col-md-6">
+                        {{ form.email.label_tag }}
+                        {{ form.email|add_class:"form-control" }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ form.celular.label_tag }}
+                        {{ form.celular|add_class:"form-control" }}
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Endereço -->
-        <div class="card mb-4 shadow-sm rounded">
+        <div class="card shadow-sm mb-4">
             <div class="card-header bg-secondary text-white fw-bold">Endereço</div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-3 mb-3">{{ form.cep.label_tag }} {{ form.cep }}</div>
-                    <div class="col-md-6 mb-3">{{ form.logradouro.label_tag }} {{ form.logradouro }}</div>
-                    <div class="col-md-3 mb-3">{{ form.numero.label_tag }} {{ form.numero }}</div>
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        {{ form.cep.label_tag }}
+                        {{ form.cep|add_class:"form-control" }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ form.logradouro.label_tag }}
+                        {{ form.logradouro|add_class:"form-control" }}
+                    </div>
+                    <div class="col-md-3">
+                        {{ form.numero.label_tag }}
+                        {{ form.numero|add_class:"form-control" }}
+                    </div>
                 </div>
-                <div class="row">
-                    <div class="col-md-4 mb-3">{{ form.bairro.label_tag }} {{ form.bairro }}</div>
-                    <div class="col-md-4 mb-3">{{ form.cidade.label_tag }} {{ form.cidade }}</div>
-                    <div class="col-md-2 mb-3">{{ form.estado.label_tag }} {{ form.estado }}</div>
-                    <div class="col-md-2 mb-3">{{ form.complemento.label_tag }} {{ form.complemento }}</div>
+                <div class="row g-3 mt-2">
+                    <div class="col-md-4">
+                        {{ form.bairro.label_tag }}
+                        {{ form.bairro|add_class:"form-control" }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ form.cidade.label_tag }}
+                        {{ form.cidade|add_class:"form-control" }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.estado.label_tag }}
+                        {{ form.estado|add_class:"form-control" }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.complemento.label_tag }}
+                        {{ form.complemento|add_class:"form-control" }}
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Foto -->
-        <div class="card mb-4 shadow-sm rounded">
+        <div class="card shadow-sm mb-4">
             <div class="card-header bg-info text-white fw-bold">Foto do Colaborador</div>
             <div class="card-body">
-                <div class="mb-3">{{ form.foto.label_tag }} {{ form.foto }}</div>
+                <div class="mb-3">
+                    {{ form.foto.label_tag }}
+                    {{ form.foto|add_class:"form-control" }}
+                </div>
             </div>
         </div>
 
         <!-- Botões -->
-        <div class="d-flex flex-wrap gap-2 mb-4 justify-content-end">
+        <div class="d-flex justify-content-end gap-2 mb-5">
             <button type="submit" class="btn btn-primary btn-hover-3d">Salvar</button>
-            <a href="javascript:history.back()" class="btn btn-secondary btn-hover-3d">Cancelar</a>
+            <a href="{% url 'colaboradores_list' %}" class="btn btn-secondary btn-hover-3d">Cancelar</a>
         </div>
     </form>
 </div>
 
 <style>
+/* Inputs e selects */
 form input, form select, form textarea {
     width: 100%;
     padding: 0.55rem 0.75rem;
     border-radius: 6px;
     border: 1px solid #cfd2d7;
     font-size: 0.95rem;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
 form input:focus, form select:focus, form textarea:focus {
     border-color: #6c5ce7;
     box-shadow: 0 0 8px rgba(108,92,231,0.3);
     outline: none;
 }
+
+/* Botões hover */
 .btn-hover-3d {
     font-size: 0.9rem;
-    padding: 0.5rem 1.2rem;
+    padding: 0.55rem 1.2rem;
     border-radius: 6px;
     font-weight: 500;
     box-shadow: 0 2px 5px rgba(0,0,0,0.15);
@@ -96,14 +158,21 @@ form input:focus, form select:focus, form textarea:focus {
     transform: translateY(-2px);
     box-shadow: 0 5px 10px rgba(0,0,0,0.2);
 }
+
+/* Cards */
 .card {
     border-radius: 8px;
     overflow: hidden;
 }
 .card-header {
-    padding: 0.75rem 1rem;
     font-size: 1rem;
     text-transform: uppercase;
+    padding: 0.75rem 1rem;
+}
+
+/* Mensagens */
+.alert {
+    font-size: 0.9rem;
 }
 </style>
 {% endblock %}

@@ -57,10 +57,20 @@
                 </select>
             </div>
 
+            <!-- Dropdown de colaboradores do RH -->
+            <div class="mb-3">
+                <label for="colaborador" class="form-label">Colaborador (RH)</label>
+                <input type="text" id="busca-colaborador" class="form-control mb-2" placeholder="Filtrar por nome...">
+                <select name="colaborador" id="colaborador" class="form-select" required size="5">
+                    {% for c in colaboradores %}
+                        <option value="{{ c.id }}">{{ c.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
             <button type="submit" class="btn btn-primary">Criar Usuário</button>
         </form>
     {% else %}
-        <!-- Mensagem para usuários não administradores -->
         <div class="alert alert-warning mt-4">
             <i class="bi bi-exclamation-triangle-fill"></i>
             Você não tem permissão para cadastrar usuários.
@@ -89,11 +99,10 @@ function verificarForcaSenha() {
     const forca = document.getElementById("forca-senha");
 
     let nivel = 0;
-
-    if (senha.length >= 6) nivel++; // comprimento mínimo
-    if (/[A-Z]/.test(senha)) nivel++; // letra maiúscula
-    if (/[0-9]/.test(senha)) nivel++; // número
-    if (/[^A-Za-z0-9]/.test(senha)) nivel++; // caractere especial
+    if (senha.length >= 6) nivel++;
+    if (/[A-Z]/.test(senha)) nivel++;
+    if (/[0-9]/.test(senha)) nivel++;
+    if (/[^A-Za-z0-9]/.test(senha)) nivel++;
 
     let texto = "";
     let cor = "";
@@ -118,6 +127,15 @@ function verificarForcaSenha() {
     forca.textContent = texto;
     forca.className = "form-text " + cor;
 }
+
+// Filtro de colaboradores
+document.getElementById("busca-colaborador").addEventListener("keyup", function() {
+    const filtro = this.value.toLowerCase();
+    const select = document.getElementById("colaborador");
+    for (let i = 0; i < select.options.length; i++) {
+        const option = select.options[i];
+        option.style.display = option.text.toLowerCase().includes(filtro) ? "block" : "none";
+    }
+});
 </script>
 {% endblock %}
-

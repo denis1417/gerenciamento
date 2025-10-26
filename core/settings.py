@@ -4,7 +4,7 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 try:
-    from dotenv import load_dotenv  # type: ignore[reportMissingImports]
+    from dotenv import load_dotenv
     load_dotenv()
 except Exception:
     pass

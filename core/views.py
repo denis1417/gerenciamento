@@ -23,7 +23,7 @@ from .models import (
     SaidaInsumo,
     Insumo,
     CatalogoProduto,
-    VistoriaInsumo  # adicionado
+    VistoriaInsumo
 )
 from .forms import (
     ProdutoProntoForm,
@@ -33,17 +33,16 @@ from .forms import (
     ColaboradorForm
 )
 
-# ===== Firestore repos (opcionais; só usados se flags ligadas) =================
 _FS_COLAB = None
 _FS_INSUMOS = None
 try:
-    from confeitaria.repos_colaboradores import ColaboradoresRepo  # type: ignore
+    from confeitaria.repos_colaboradores import ColaboradoresRepo
     _FS_COLAB = ColaboradoresRepo()
 except Exception:
     _FS_COLAB = None
 
 try:
-    from confeitaria.repos_insumos import InsumosRepo  # type: ignore
+    from confeitaria.repos_insumos import InsumosRepo
     _FS_INSUMOS = InsumosRepo()
 except Exception:
     _FS_INSUMOS = None
@@ -60,7 +59,6 @@ def _wrap_dicts_as_objs(items):
         if isinstance(d, dict):
             obj = SimpleNamespace(**d)
             
-            # Adiciona método formatar_quantidade para insumos
             if 'quantidade_total' in d and 'unidade_base' in d:
                 def formatar_quantidade_func():
                     q = float(d.get('quantidade_total', 0))
@@ -150,15 +148,13 @@ def colaboradores_list(request):
     query = request.GET.get('q')
 
     if use_fs:
-        # Busca Firestore e filtra por nome no servidor (contains, case-insensitive)
-        items = _FS_COLAB.list(limit=1000)  # limite alto para equivalência com lista completa
+        items = _FS_COLAB.list(limit=1000)
         if query:
             q = (query or "").strip().lower()
             items = [it for it in items if (it.get("nome") or "").lower().find(q) >= 0]
         colaboradores = _wrap_dicts_as_objs(items)
         return render(request, "core/colaboradores_list.html", {"colaboradores": colaboradores})
 
-    # Caminho original (SQLite/ORM)
     if query:
         colaboradores = Colaborador.objects.filter(
             nome__icontains=query).order_by('nome')
@@ -176,7 +172,6 @@ def colaboradores_create(request):
     if request.method == "POST":
         if form.is_valid():
             if use_fs:
-                # Salva no Firestore
                 data = {
                     "rc": form.cleaned_data.get("rc"),
                     "nome": form.cleaned_data.get("nome"),
@@ -199,7 +194,6 @@ def colaboradores_create(request):
                 messages.success(
                     request, f"Colaborador {data['nome']} cadastrado com sucesso no Firestore!")
             else:
-                # Salva no SQLite
                 colaborador = form.save()
                 messages.success(
                     request, f"Colaborador {colaborador.nome} cadastrado com sucesso!")
@@ -217,7 +211,6 @@ def colaboradores_edit(request, id):
     use_fs = getattr(settings, "USE_FIRESTORE", False) and (_FS_COLAB is not None)
     
     if use_fs:
-        # Busca no Firestore
         colab_data = _FS_COLAB.get(str(id))
         if not colab_data:
             messages.error(request, "Colaborador não encontrado.")

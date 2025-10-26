@@ -3,7 +3,7 @@ Django settings for confeitaria project.
 """
 
 from pathlib import Path
-import os  # <-- IMPORTANTE para manipular caminhos
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -13,25 +13,18 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# (opcional) carregar .env se você instalou python-dotenv
 try:
-    from dotenv import load_dotenv  # type: ignore[reportMissingImports]
+    from dotenv import load_dotenv
     load_dotenv()
 except Exception:
     pass
 
-# seu Project ID (fallback)
 FIRESTORE_PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "projeto-integrador-2-31637")
 
-# emulador (opcional)
 FIRESTORE_EMULATOR_HOST = os.getenv("FIRESTORE_EMULATOR_HOST")
 
-# Toggle global para alternar entre SQLite e Firestore
-# True = usa Firestore para TODOS os modelos
-# False = usa SQLite para TODOS os modelos
 USE_FIRESTORE = True
 
-# CAMINHO DA CHAVE JSON — aponta para a pasta secrets do projeto
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv(
     "GOOGLE_APPLICATION_CREDENTIALS",
     str(BASE_DIR / "secrets" / "django-firestore-key.json")
@@ -51,7 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'core',  # <-- seu app da confeitaria
+    'core',
     'confeitaria'
 ]
 
@@ -78,7 +71,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "core.context_processors.group_permissions",  # <-- adicione esta linha
+                "core.context_processors.group_permissions",
             ],
         },
     },
@@ -107,8 +100,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 # Internationalization
-LANGUAGE_CODE = 'pt-br'   # <-- mudei para português
-TIME_ZONE = 'America/Sao_Paulo'  # <-- ajustei para o Brasil
+LANGUAGE_CODE = 'pt-br'
+TIME_ZONE = 'America/Sao_Paulo'
 USE_I18N = True
 USE_TZ = True
 

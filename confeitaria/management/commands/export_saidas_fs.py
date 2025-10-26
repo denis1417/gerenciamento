@@ -3,7 +3,6 @@ from django.db.models.fields.files import FieldFile
 from datetime import datetime, timezone, date
 from decimal import Decimal
 
-# Ajuste o import do modelo SaidaInsumo conforme seu projeto:
 try:
     from core.models import SaidaInsumo
 except Exception:
@@ -80,20 +79,16 @@ class Command(BaseCommand):
             doc_id = f"sql-{saida.pk}"
             payload = _model_to_dict_safe(saida)
 
-            # Campos denormalizados úteis (se existirem no seu modelo):
-            # - insumo (FK)
             insumo_id = getattr(saida, "insumo_id", None)
             insumo_nome = str(getattr(saida, "insumo", "")) if insumo_id else None
             payload.setdefault("insumo_id", insumo_id)
             payload.setdefault("insumo_nome", insumo_nome)
 
-            # - colaborador/usuario que efetuou a saída (se houver)
             colaborador_id = getattr(saida, "colaborador_id", None)
             colaborador_nome = str(getattr(saida, "colaborador", "")) if colaborador_id else None
             payload.setdefault("colaborador_id", colaborador_id)
             payload.setdefault("colaborador_nome", colaborador_nome)
 
-            # Upsert determinístico (merge=True)
             repo.create_with_id(doc_id, payload)
             total += 1
 

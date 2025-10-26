@@ -1,4 +1,3 @@
-# confeitaria/repos_colaboradores.py
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone, date
 from google.cloud import firestore
@@ -8,43 +7,34 @@ from google.cloud.firestore_v1.base_query import FieldFilter
 class ColaboradoresRepo(FirestoreRepo):
     collection_name = "colaboradores"
 
-    # ⚠️ Campos do seu Django:
-    # rc, nome, data_nascimento, sexo, funcao, CPF_RG, foto, email, celular,
-    # cep, logradouro, numero, bairro, cidade, estado, complemento, usuario (OneToOne User)
-
     def _coerce_date(self, value):
         if value is None or value == "":
             return None
         if isinstance(value, (datetime, )):
             return value.astimezone(timezone.utc)
         if isinstance(value, date):
-            # salva como datetime UTC 00:00 pra manter consistência nas queries
             return datetime(value.year, value.month, value.day, tzinfo=timezone.utc)
-        # tenta parse básico ISO
         try:
             return datetime.fromisoformat(str(value).replace("Z", "+00:00")).astimezone(timezone.utc)
         except Exception:
             return None
 
     def normalize_in(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        # Strings “limpas”
         def s(key): 
             return str(data.get(key, "") or "").strip()
 
-        # mapeia usuário associado (OneToOne): guardamos apenas o id e o username, se vier
         usuario_id = data.get("usuario_id")
         usuario_username = data.get("usuario_username")
 
-        # imagem/foto: no Firestore vamos guardar o caminho relativo (ou URL se você enviar)
         foto = data.get("foto")
         if hasattr(foto, "name"):
-            foto = foto.name  # ex.: "colaboradores/arquivo.jpg"
+            foto = foto.name
 
         payload = {
             "rc": s("rc"),
             "nome": s("nome"),
             "data_nascimento": self._coerce_date(data.get("data_nascimento")),
-            "sexo": s("sexo"),            # "M" ou "F"
+            "sexo": s("sexo"),
             "funcao": s("funcao"),
             "CPF_RG": s("CPF_RG"),
             "foto": foto if foto else None,
@@ -55,7 +45,7 @@ class ColaboradoresRepo(FirestoreRepo):
             "numero": s("numero") or None,
             "bairro": s("bairro") or None,
             "cidade": s("cidade") or None,
-            "estado": s("estado") or None,   # “MG”, “SP”, etc.
+            "estado": s("estado") or None,
             "complemento": s("complemento") or None,
             "usuario": {
                 "id": int(usuario_id) if str(usuario_id).isdigit() else None,
@@ -64,7 +54,6 @@ class ColaboradoresRepo(FirestoreRepo):
         }
         return payload
 
-    # CRUD conveniência
     def create_colab(self, data: Dict[str, Any]) -> Dict[str, Any]:
         payload = self.normalize_in(data)
         if not payload["rc"]:
@@ -79,7 +68,6 @@ class ColaboradoresRepo(FirestoreRepo):
         payload = self.normalize_in(data)
         return self.set(doc_id, payload)
 
-    # Filtros úteis (exemplos)
     def get_by_rc(self, rc: str):
         q = self.col.where(filter=FieldFilter("rc", "==", rc)).limit(1).stream()
         for s in q:
@@ -87,7 +75,6 @@ class ColaboradoresRepo(FirestoreRepo):
         return None
 
     def list_by_nome(self, termo: str, limit: int = 50) -> List[Dict[str, Any]]:
-        # Firestore não faz LIKE, então sugerido: indexar nome_lower p/ prefix search (opcional)
         termo = (termo or "").strip().lower()
         if not termo:
             return self.list(limit=limit)

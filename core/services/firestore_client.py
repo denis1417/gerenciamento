@@ -6,17 +6,14 @@ import os
 
 @lru_cache(maxsize=1)
 def get_db() -> firestore.Client:
-    # Usa emulador se definido
     if getattr(settings, "FIRESTORE_EMULATOR_HOST", None):
         os.environ["FIRESTORE_EMULATOR_HOST"] = settings.FIRESTORE_EMULATOR_HOST
 
-    # 1) tenta usar a CHAVE JSON do settings (sem depender de ADC)
     key_path = getattr(settings, "GOOGLE_APPLICATION_CREDENTIALS", None)
     if key_path and os.path.exists(key_path):
         creds = service_account.Credentials.from_service_account_file(key_path)
         project = getattr(settings, "FIRESTORE_PROJECT_ID", None) or creds.project_id
         return firestore.Client(project=project, credentials=creds)
 
-    # 2) fallback: tenta ADC (se existir)
     project = getattr(settings, "FIRESTORE_PROJECT_ID", None) or None
     return firestore.Client(project=project)

@@ -1,32 +1,23 @@
 from django.core.management.base import BaseCommand
 from django.db.models.fields.files import FieldFile
-# Tenta importar Insumo do app onde ele estiver
 try:
     from core.models import Insumo
 except Exception:
-    from confeitaria.models import Insumo  # fallback se seu modelo estiver aqui
+    from confeitaria.models import Insumo
 
 from confeitaria.repos_insumos import InsumosRepo
 
 def _model_to_dict(instance):
-    """
-    Serializa qualquer modelo Django em dict simples, preservando nomes de campos.
-    - File/Image: salva .name
-    - FKs: salva "<campo>_id" com pk e "<campo>_str" com str(instance.fk) (auxiliar para UI)
-    - ManyToMany: salva lista de pks em "<campo>_ids" e lista de strings em "<campo>_strs"
-    """
     data = {}
     opts = instance._meta
-    # Campos simples + FKs
     for f in opts.get_fields():
         if f.many_to_many:
-            # M2M: lista de pks + strings
             if hasattr(instance, f.name):
                 qs = getattr(instance, f.name).all()
                 data[f"{f.name}_ids"]  = [obj.pk for obj in qs]
                 data[f"{f.name}_strs"] = [str(obj) for obj in qs]
             continue
-        if f.many_to_one:  # ForeignKey
+        if f.many_to_one:
             rel = getattr(instance, f.name, None)
             data[f"{f.name}_id"]  = getattr(rel, "pk", None)
             data[f"{f.name}_str"] = str(rel) if rel else None
@@ -55,7 +46,7 @@ class Command(BaseCommand):
         for insumo in qs.iterator():
             doc_id = f"sql-{insumo.pk}"
             payload = _model_to_dict(insumo)
-            repo.create_with_id(doc_id, payload)  # cria ou atualiza (merge=True)
+            repo.create_with_id(doc_id, payload)
             total += 1
 
         self.stdout.write(self.style.SUCCESS(f"Exportação concluída. Registros processados: {total}"))

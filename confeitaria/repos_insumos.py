@@ -5,7 +5,6 @@ class InsumosRepo(FirestoreRepo):
     collection_name = "insumos"
 
     def normalize_in(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        # Não forço schema aqui: apenas trato alguns tipos comuns.
         out: Dict[str, Any] = {}
         for k, v in (data or {}).items():
             if k.lower().endswith(("_data", "_dt", "_at")):

@@ -19,7 +19,6 @@ def _coerce_dt(v):
     if isinstance(v, date):
         return datetime(v.year, v.month, v.day, tzinfo=timezone.utc)
     try:
-        # aceita ISO com Z
         return datetime.fromisoformat(str(v).replace("Z", "+00:00")).astimezone(timezone.utc)
     except Exception:
         return None
@@ -32,16 +31,8 @@ def _coerce_value(v):
     return v
 
 def _model_to_dict_safe(instance):
-    """
-    Serializa apenas campos concretos e M2M FORWARD (sem relações reversas).
-    - Campos simples e FK (concretos) vêm de instance._meta.fields
-    - M2M forward vem de instance._meta.many_to_many
-    - File/Image => .name
-    - FK => <campo>_id e <campo>_str
-    """
     data = {}
 
-    # Campos concretos (inclui FK forward)
     for f in instance._meta.fields:
         if not hasattr(instance, f.name):
             continue
@@ -56,7 +47,6 @@ def _model_to_dict_safe(instance):
         else:
             data[f.name] = _coerce_value(val)
 
-    # M2M forward
     for m2m in instance._meta.many_to_many:
         if not hasattr(instance, m2m.name):
             continue
@@ -93,21 +83,17 @@ class Command(BaseCommand):
         for ficha in qs.iterator():
             doc_id = f"sql-{ficha.pk}"
 
-            # Ficha (payload base)
             payload = _model_to_dict_safe(ficha)
 
-            # Itens/insumos
             itens = []
             rel_qs = FichaInsumo.objects.filter(ficha=ficha)
 
             for fi in rel_qs:
-                fi_dict = _model_to_dict_safe(fi)  # já sanitizado
+                fi_dict = _model_to_dict_safe(fi)
 
-                # Denormalizados amigáveis
                 insumo_id = getattr(fi, "insumo_id", None)
                 insumo_nome = str(getattr(fi, "insumo", "")) if insumo_id else None
 
-                # Detecta quantidade por vários nomes comuns
                 quantidade_val = _first_attr(fi, [
                     "quantidade", "qtd", "qtde", "quant", "quantidade_usada", "qtd_usada", "qtd_saida"
                 ])
@@ -118,13 +104,12 @@ class Command(BaseCommand):
                     "insumo_nome": insumo_nome,
                     "quantidade": str(quantidade_val) if quantidade_val is not None else None,
                     "unidade": unidade_val if unidade_val is not None else fi_dict.get("unidade"),
-                    "raw": fi_dict,  # guarda todos os campos concretos forward do FichaInsumo
+                    "raw": fi_dict,
                 }
                 itens.append(item)
 
             payload["insumos"] = itens
 
-            # Upsert determinístico (merge=True)
             repo.create_with_id(doc_id, payload)
             total += 1
 

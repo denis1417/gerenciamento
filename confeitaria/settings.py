@@ -23,8 +23,11 @@ FIRESTORE_PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "projeto-integrador-2-3
 
 FIRESTORE_EMULATOR_HOST = os.getenv("FIRESTORE_EMULATOR_HOST")
 
-# Forçar uso apenas do SQLite (ignorando .env)
-USE_FIRESTORE = False
+# CONTROLE DO SISTEMA HÍBRIDO
+# Altere aqui para alternar entre SQLite e Firestore:
+# True = Usa Firestore (sistema híbrido)
+# False = Usa apenas SQLite
+USE_FIRESTORE = True  # <-- ALTERE AQUI QUANDO NECESSÁRIO
 
 # Em produção, usar variável de ambiente com JSON das credenciais
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv(

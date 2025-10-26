@@ -38,7 +38,14 @@ GOOGLE_APPLICATION_CREDENTIALS = os.getenv(
 # Segurança
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-_kbzn*1xrh$merov!7f0m9gi5(cti_oe@t$2n(ek-i(p!w%fn^')
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+
+# ALLOWED_HOSTS - Configuração definitiva para PythonAnywhere
+ALLOWED_HOSTS = [
+    'hiagojpereira.pythonanywhere.com',
+    'localhost',
+    '127.0.0.1',
+    '.pythonanywhere.com',  # Permite qualquer subdomínio do PythonAnywhere
+]
 
 
 # Application definition

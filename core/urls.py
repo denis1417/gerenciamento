@@ -1,8 +1,13 @@
 from django.urls import path
 from . import views
+from .views_firestore import firestore_ping
 
 urlpatterns = [
     path('', views.home, name='home'),
+    
+     # Rota de teste do Firestore
+    path('firestore/ping/', firestore_ping, name='firestore_ping'),  # ← ADICIONE ESTA LINHA
+
 
     # Colaboradores
     path('colaboradores/', views.colaboradores_list, name='colaboradores_list'),

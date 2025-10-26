@@ -8,10 +8,38 @@ import os  # <-- IMPORTANTE para manipular caminhos
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+from pathlib import Path
+import os
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# (opcional) carregar .env se você instalou python-dotenv
+try:
+    from dotenv import load_dotenv  # type: ignore[reportMissingImports]
+    load_dotenv()
+except Exception:
+    pass
+
+# seu Project ID (fallback)
+FIRESTORE_PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "projeto-integrador-2-31637")
+
+# emulador (opcional)
+FIRESTORE_EMULATOR_HOST = os.getenv("FIRESTORE_EMULATOR_HOST")
+
+# Toggle global para alternar entre SQLite e Firestore
+# True = usa Firestore para TODOS os modelos
+# False = usa SQLite para TODOS os modelos
+USE_FIRESTORE = True
+
+# CAMINHO DA CHAVE JSON — aponta para a pasta secrets do projeto
+GOOGLE_APPLICATION_CREDENTIALS = os.getenv(
+    "GOOGLE_APPLICATION_CREDENTIALS",
+    str(BASE_DIR / "secrets" / "django-firestore-key.json")
+)
 
 # Segurança
 SECRET_KEY = 'django-insecure-_kbzn*1xrh$merov!7f0m9gi5(cti_oe@t$2n(ek-i(p!w%fn^'
-DEBUG = False
+DEBUG = True
 ALLOWED_HOSTS = []
 
 
@@ -24,6 +52,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'core',  # <-- seu app da confeitaria
+    'confeitaria'
 ]
 
 MIDDLEWARE = [

@@ -140,11 +140,11 @@ def home(request):
 @check_group("RH")
 def colaboradores_list(request):
     """
-    Lista de colaboradores com toggle Firestore.
-    - SQLite (padrão): comportamento original
-    - Firestore (opcional): usa ColaboradoresRepo e mantém o mesmo template
+    Lista de colaboradores usando apenas SQLite.
+    Temporariamente desabilitado o Firestore para garantir que use SQLite.
     """
-    use_fs = getattr(settings, "USE_FIRESTORE", False) and (_FS_COLAB is not None)
+    # Forçar uso do SQLite
+    use_fs = False
     query = request.GET.get('q')
 
     if use_fs:

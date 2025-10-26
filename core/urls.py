@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 from .views_firestore import firestore_ping
-from confeitaria.views_fs_colaboradores import fs_colaboradores_list, fs_colaboradores_create, fs_colaboradores_detail, fs_colaboradores_edit, fs_colaboradores_delete
+from confeitaria.views_fs_colaboradores import fs_colaboradores_list, fs_colaboradores_create, fs_colaboradores_detail
 
 urlpatterns = [
     path('', views.home, name='home'),
@@ -16,9 +16,9 @@ urlpatterns = [
     path('colaboradores/<int:id>/', fs_colaboradores_detail,
          name='colaboradores_detail'),
     path('colaboradores/<int:id>/editar/',
-         fs_colaboradores_edit, name='colaboradores_edit'),
+         views.colaboradores_edit, name='colaboradores_edit'),
     path('colaboradores/<int:id>/excluir/',
-         fs_colaboradores_delete, name='colaboradores_delete'),
+         views.colaboradores_delete, name='colaboradores_delete'),
 
     # Insumos
     path('insumos/', views.insumos_list, name='insumos_list'),

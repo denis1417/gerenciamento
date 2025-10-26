@@ -1,7 +1,6 @@
 from django.urls import path
 from . import views
 from .views_firestore import firestore_ping
-from confeitaria.views_fs_colaboradores import fs_colaboradores_list, fs_colaboradores_create, fs_colaboradores_detail
 
 urlpatterns = [
     path('', views.home, name='home'),
@@ -10,10 +9,10 @@ urlpatterns = [
 
 
     # Colaboradores
-    path('colaboradores/', fs_colaboradores_list, name='colaboradores_list'),
-    path('colaboradores/novo/', fs_colaboradores_create,
+    path('colaboradores/', views.colaboradores_list, name='colaboradores_list'),
+    path('colaboradores/novo/', views.colaboradores_create,
          name='colaboradores_create'),
-    path('colaboradores/<int:id>/', fs_colaboradores_detail,
+    path('colaboradores/<int:id>/', views.colaboradores_detail,
          name='colaboradores_detail'),
     path('colaboradores/<int:id>/editar/',
          views.colaboradores_edit, name='colaboradores_edit'),

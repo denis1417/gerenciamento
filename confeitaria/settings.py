@@ -24,10 +24,8 @@ FIRESTORE_PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "projeto-integrador-2-3
 FIRESTORE_EMULATOR_HOST = os.getenv("FIRESTORE_EMULATOR_HOST")
 
 # CONTROLE DO SISTEMA HÍBRIDO
-# Altere aqui para alternar entre SQLite e Firestore:
-# True = Usa Firestore (sistema híbrido)
-# False = Usa apenas SQLite
-USE_FIRESTORE = True  # <-- ALTERE AQUI QUANDO NECESSÁRIO
+# MODO: 100% FIRESTORE (sem SQLite)
+USE_FIRESTORE = True  # SEMPRE FIRESTORE
 
 # Em produção, usar variável de ambiente com JSON das credenciais
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv(
@@ -39,12 +37,11 @@ GOOGLE_APPLICATION_CREDENTIALS = os.getenv(
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-_kbzn*1xrh$merov!7f0m9gi5(cti_oe@t$2n(ek-i(p!w%fn^')
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
-# ALLOWED_HOSTS - Configuração definitiva para PythonAnywhere
-ALLOWED_HOSTS = [
+# ALLOWED_HOSTS - Configuração para local e PythonAnywhere
+ALLOWED_HOSTS_ENV = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1')
+ALLOWED_HOSTS = ALLOWED_HOSTS_ENV.split(',') + [
     'hiagojpereira.pythonanywhere.com',
-    'localhost',
-    '127.0.0.1',
-    '.pythonanywhere.com',  # Permite qualquer subdomínio do PythonAnywhere
+    '.pythonanywhere.com',
 ]
 
 

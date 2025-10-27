@@ -43,7 +43,7 @@
                     <td>{{ forloop.counter }}</td>
                     <td>
                         {% if colaborador.foto %}
-                            <img src="{{ colaborador.foto.url }}" alt="{{ colaborador.nome|default:"Item não informado" }}" class="rounded-circle" style="width:45px; height:45px; object-fit:cover;">
+                            <img src="{{ MEDIA_URL }}{{ colaborador.foto }}" alt="{{ colaborador.nome|default:"Item não informado" }}" class="rounded-circle" style="width:45px; height:45px; object-fit:cover;">
                         {% else %}
                             <i class="bi bi-person-circle text-muted" style="font-size:2rem;"></i>
                         {% endif %}

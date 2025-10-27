@@ -41,7 +41,7 @@
                     </div>
                     <div class="col-md-2">
                         {{ form.data_nascimento.label_tag }}
-                        {{ form.data_nascimento|add_class:"form-control" }}
+                        {{ form.data_nascimento }}
                     </div>
                     <div class="col-md-3">
                         {{ form.sexo.label_tag }}
@@ -114,10 +114,34 @@
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-info text-white fw-bold">Foto do Colaborador</div>
             <div class="card-body">
-                <div class="mb-3">
-                    {{ form.foto.label_tag }}
-                    {{ form.foto|add_class:"form-control" }}
-                </div>
+                {% if form.foto_existente %}
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Foto Atual:</label>
+                                <div class="text-center">
+                                    <img src="{{ MEDIA_URL }}{{ form.foto_existente }}" 
+                                         alt="Foto atual" 
+                                         class="img-thumbnail" 
+                                         style="max-width: 150px; max-height: 150px; object-fit: cover;">
+                                    <p class="small text-muted mt-2">{{ form.foto_existente }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <div class="mb-3">
+                                {{ form.foto.label_tag }}
+                                {{ form.foto|add_class:"form-control" }}
+                                <div class="form-text">Selecione uma nova foto apenas se desejar substituir a atual.</div>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="mb-3">
+                        {{ form.foto.label_tag }}
+                        {{ form.foto|add_class:"form-control" }}
+                    </div>
+                {% endif %}
             </div>
         </div>
 

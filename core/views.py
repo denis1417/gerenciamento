@@ -1,5 +1,6 @@
 from collections import defaultdict
 from datetime import date, timedelta
+import os
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -143,8 +144,8 @@ def colaboradores_list(request):
     Lista de colaboradores usando apenas SQLite.
     Temporariamente desabilitado o Firestore para garantir que use SQLite.
     """
-    # Forçar uso do SQLite
-    use_fs = False
+    # FORÇAR SEMPRE FIRESTORE
+    use_fs = True  # 100% Firestore mode
     query = request.GET.get('q')
 
     if use_fs:
@@ -166,12 +167,31 @@ def colaboradores_list(request):
 @login_required
 @check_group("RH")
 def colaboradores_create(request):
-    use_fs = getattr(settings, "USE_FIRESTORE", False) and (_FS_COLAB is not None)
+    use_fs = True  # 100% Firestore - FORÇADO para consistência
     form = ColaboradorForm(request.POST or None, request.FILES or None)
     
     if request.method == "POST":
         if form.is_valid():
             if use_fs:
+                # Processa upload de imagem se existe
+                foto_path = None
+                if form.cleaned_data.get("foto"):
+                    foto_file = form.cleaned_data["foto"]
+                    # Salva o arquivo usando o modelo Django temporariamente para aproveitar o upload_to
+                    temp_colaborador = Colaborador()
+                    temp_colaborador.foto = foto_file
+                    # Gera o caminho usando a lógica do Django
+                    foto_path = f"colaboradores/{foto_file.name}"
+                    full_path = os.path.join(settings.MEDIA_ROOT, foto_path)
+                    
+                    # Cria o diretório se não existe
+                    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                    
+                    # Salva o arquivo manualmente
+                    with open(full_path, 'wb+') as destination:
+                        for chunk in foto_file.chunks():
+                            destination.write(chunk)
+                
                 data = {
                     "rc": form.cleaned_data.get("rc"),
                     "nome": form.cleaned_data.get("nome"),
@@ -179,7 +199,7 @@ def colaboradores_create(request):
                     "sexo": form.cleaned_data.get("sexo"),
                     "funcao": form.cleaned_data.get("funcao"),
                     "CPF_RG": form.cleaned_data.get("CPF_RG"),
-                    "foto": form.cleaned_data.get("foto").name if form.cleaned_data.get("foto") else None,
+                    "foto": foto_path,  # Salva apenas o caminho relativo
                     "email": form.cleaned_data.get("email"),
                     "celular": form.cleaned_data.get("celular"),
                     "cep": form.cleaned_data.get("cep"),
@@ -208,7 +228,7 @@ def colaboradores_create(request):
 @login_required
 @check_group("RH")
 def colaboradores_edit(request, id):
-    use_fs = getattr(settings, "USE_FIRESTORE", False) and (_FS_COLAB is not None)
+    use_fs = True  # 100% Firestore - FORÇADO para consistência
     
     if use_fs:
         colab_data = _FS_COLAB.get(str(id))
@@ -217,13 +237,82 @@ def colaboradores_edit(request, id):
             return redirect("colaboradores_list")
         
         # Converte data do Firestore para o formato do form se necessário
-        initial_data = colab_data.copy()
-        if initial_data.get("data_nascimento") and hasattr(initial_data["data_nascimento"], "date"):
-            initial_data["data_nascimento"] = initial_data["data_nascimento"].date()
+        initial_data = {}  # Começar com dict limpo em vez de copiar tudo
+        
+        # DEBUG: Vamos ver o que está vindo do Firestore
+        print(f"DEBUG - Dados do Firestore: {colab_data}")
+        print(f"DEBUG - data_nascimento: {colab_data.get('data_nascimento')}")
+        print(f"DEBUG - tipo da data: {type(colab_data.get('data_nascimento'))}")
+        
+        # Mapear apenas os campos que o formulário precisa
+        initial_data['rc'] = colab_data.get('rc', '')
+        initial_data['nome'] = colab_data.get('nome', '')
+        initial_data['sexo'] = colab_data.get('sexo', '')
+        initial_data['funcao'] = colab_data.get('funcao', '')
+        initial_data['CPF_RG'] = colab_data.get('CPF_RG', '')
+        initial_data['email'] = colab_data.get('email', '')
+        initial_data['celular'] = colab_data.get('celular', '')
+        initial_data['cep'] = colab_data.get('cep', '')
+        initial_data['logradouro'] = colab_data.get('logradouro', '')
+        initial_data['numero'] = colab_data.get('numero', '')
+        initial_data['bairro'] = colab_data.get('bairro', '')
+        initial_data['cidade'] = colab_data.get('cidade', '')
+        initial_data['estado'] = colab_data.get('estado', '')
+        initial_data['complemento'] = colab_data.get('complemento', '')
+        
+        # Processamento específico da data de nascimento
+        if colab_data.get("data_nascimento"):
+            data_nascimento = colab_data["data_nascimento"]
+            print(f"DEBUG - Processando data: {data_nascimento} (tipo: {type(data_nascimento)})")
+            
+            if hasattr(data_nascimento, "date"):
+                # Se é um datetime, pega só a data
+                converted_date = data_nascimento.date()
+                initial_data["data_nascimento"] = converted_date
+                print(f"DEBUG - Convertido datetime para date: {converted_date}")
+            elif isinstance(data_nascimento, str):
+                # Se é uma string, tenta converter para data
+                try:
+                    from datetime import datetime
+                    converted_date = datetime.strptime(data_nascimento, "%Y-%m-%d").date()
+                    initial_data["data_nascimento"] = converted_date
+                    print(f"DEBUG - Convertido string para date: {converted_date}")
+                except (ValueError, TypeError):
+                    # Se não conseguir converter, não adiciona a data
+                    print(f"DEBUG - Erro ao converter string: {data_nascimento}")
+            else:
+                print(f"DEBUG - Tipo não reconhecido: {type(data_nascimento)}")
+        else:
+            print("DEBUG - Nenhuma data_nascimento encontrada nos dados")
+        
+        # Foto existente (não vai no initial_data)
+        foto_existente = colab_data.get("foto", None)
+        print(f"DEBUG - Foto existente: {foto_existente}")
+            
+        print(f"DEBUG - initial_data final para o form: {initial_data}")
             
         form = ColaboradorForm(request.POST or None, request.FILES or None, initial=initial_data)
         
+        # Adicionar informação da foto existente para o template
+        form.foto_existente = foto_existente
+        
         if request.method == "POST" and form.is_valid():
+            # Processa upload de nova imagem se existe
+            foto_path = colab_data.get("foto")  # Mantém a foto existente por padrão
+            if form.cleaned_data.get("foto"):
+                foto_file = form.cleaned_data["foto"]
+                # Gera o caminho usando a lógica do Django
+                foto_path = f"colaboradores/{foto_file.name}"
+                full_path = os.path.join(settings.MEDIA_ROOT, foto_path)
+                
+                # Cria o diretório se não existe
+                os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                
+                # Salva o arquivo manualmente
+                with open(full_path, 'wb+') as destination:
+                    for chunk in foto_file.chunks():
+                        destination.write(chunk)
+            
             data = {
                 "rc": form.cleaned_data.get("rc"),
                 "nome": form.cleaned_data.get("nome"),
@@ -231,7 +320,7 @@ def colaboradores_edit(request, id):
                 "sexo": form.cleaned_data.get("sexo"),
                 "funcao": form.cleaned_data.get("funcao"),
                 "CPF_RG": form.cleaned_data.get("CPF_RG"),
-                "foto": form.cleaned_data.get("foto").name if form.cleaned_data.get("foto") else colab_data.get("foto"),
+                "foto": foto_path,  # Usa a foto nova ou mantém a existente
                 "email": form.cleaned_data.get("email"),
                 "celular": form.cleaned_data.get("celular"),
                 "cep": form.cleaned_data.get("cep"),
@@ -263,7 +352,7 @@ def colaboradores_edit(request, id):
 @login_required
 @check_group("RH")
 def colaboradores_delete(request, id):
-    use_fs = getattr(settings, "USE_FIRESTORE", False) and (_FS_COLAB is not None)
+    use_fs = True  # 100% Firestore - FORÇADO para consistência
     
     if use_fs:
         # Firestore
@@ -295,7 +384,7 @@ def colaboradores_delete(request, id):
 @login_required
 @check_group("RH")
 def colaboradores_detail(request, id):
-    use_fs = getattr(settings, "USE_FIRESTORE", False) and (_FS_COLAB is not None)
+    use_fs = True  # 100% Firestore - FORÇADO para consistência
     
     if use_fs:
         # Firestore
@@ -375,9 +464,9 @@ def usuario_delete(request, id):
 @check_group("Insumos")
 def insumos_list(request):
     """
-    Lista de insumos com toggle Firestore.
+    Lista de insumos - 100% FIRESTORE
     """
-    use_fs = getattr(settings, "USE_FIRESTORE", False) and (_FS_INSUMOS is not None)
+    use_fs = True  # 100% Firestore - FORÇADO
     if use_fs:
         items = _FS_INSUMOS.list(limit=1000)
         insumos = _wrap_dicts_as_objs(items)
@@ -390,7 +479,7 @@ def insumos_list(request):
 @login_required
 @check_group("Insumos")
 def insumos_create(request):
-    use_fs = getattr(settings, "USE_FIRESTORE", False) and (_FS_INSUMOS is not None)
+    use_fs = True  # 100% Firestore - FORÇADO
     form = InsumoForm(request.POST or None)
     
     if request.method == "POST" and form.is_valid():
@@ -419,7 +508,7 @@ def insumos_create(request):
 @login_required
 @check_group("Insumos")
 def insumos_edit(request, id):
-    use_fs = getattr(settings, "USE_FIRESTORE", False) and (_FS_INSUMOS is not None)
+    use_fs = True  # 100% Firestore - FORÇADO
     
     if use_fs:
         # Busca no Firestore
@@ -428,17 +517,47 @@ def insumos_edit(request, id):
             messages.error(request, "Insumo não encontrado.")
             return redirect("insumos_list")
         
-        form = InsumoForm(request.POST or None, initial=insumo_data)
+        # Mapear dados do Firestore para o formulário
+        quantidade_total = insumo_data.get('quantidade_total', 0)
+        unidade_base = insumo_data.get('unidade_base', 'g')
+        
+        # Quebrar quantidade_total em principal e complementar
+        if unidade_base in ['g', 'ml']:
+            principal = int(quantidade_total // 1000)  # kg ou L
+            complementar = int(quantidade_total % 1000)     # g ou ml (como inteiro)
+        else:
+            principal = int(quantidade_total)
+            complementar = 0
+            
+        form_initial = {
+            'nome': insumo_data.get('nome'),
+            'unidade_base': unidade_base,
+            'quantidade_principal': principal,
+            'quantidade_complementar': complementar,
+        }
+        form = InsumoForm(request.POST or None, initial=form_initial)
         
         if request.method == "POST" and form.is_valid():
+            # Converter principal + complementar de volta para quantidade_total
+            principal = form.cleaned_data.get("quantidade_principal", 0)
+            complementar = form.cleaned_data.get("quantidade_complementar", 0)
+            unidade = form.cleaned_data.get("unidade_base")
+            
+            if unidade in ['g', 'ml']:
+                quantidade_total = (principal * 1000) + complementar  # kg→g ou L→ml
+            else:
+                quantidade_total = principal
+                
             data = {
                 "nome": form.cleaned_data.get("nome"),
-                "descricao": form.cleaned_data.get("descricao"),
-                "unidade_base": form.cleaned_data.get("unidade_base"),
-                "unidade_complementar": form.cleaned_data.get("unidade_complementar"),
-                "fator_conversao": form.cleaned_data.get("fator_conversao"),
-                "quantidade_total": form.cleaned_data.get("quantidade_total"),
-                "preco_unitario": form.cleaned_data.get("preco_unitario"),
+                "unidade_base": unidade,
+                "quantidade_total": quantidade_total,
+                "descricao": insumo_data.get("descricao"),  # Preservar campos não editáveis
+                "unidade_complementar": insumo_data.get("unidade_complementar"),
+                "fator_conversao": insumo_data.get("fator_conversao"),
+                "preco_unitario": insumo_data.get("preco_unitario"),
+                "criado_em": insumo_data.get("criado_em"),  # Preservar timestamp
+                "atualizado_em": insumo_data.get("atualizado_em"),
             }
             _FS_INSUMOS.set(str(id), data)
             messages.success(request, "Insumo atualizado com sucesso!")
@@ -458,7 +577,7 @@ def insumos_edit(request, id):
 @login_required
 @check_group("Insumos")
 def insumos_delete(request, id):
-    use_fs = getattr(settings, "USE_FIRESTORE", False) and (_FS_INSUMOS is not None)
+    use_fs = True  # 100% Firestore - FORÇADO
     
     if use_fs:
         # Firestore
@@ -472,8 +591,8 @@ def insumos_delete(request, id):
             messages.success(request, f"Insumo {insumo_data.get('nome', 'N/A')} deletado com sucesso!")
             return redirect("insumos_list")
         
-        # Cria objeto para o template
-        insumo = SimpleNamespace(**insumo_data)
+        # Cria objeto formatado para o template
+        insumo = _wrap_dicts_as_objs([insumo_data])[0]
     else:
         # SQLite
         insumo = get_object_or_404(Insumo, id=id)
@@ -651,7 +770,7 @@ def produtos_delete(request, id):
             request, f"Produto {nome_produto} excluído com sucesso!")
         return redirect("produtos_list")
 
-    return render(request, "core/confirm_delete.html", {"obj": produto})
+    return render(request, "core/delete.html", {"obj": produto})
 
 
 @login_required

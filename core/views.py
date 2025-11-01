@@ -36,6 +36,7 @@ from .forms import (
 
 _FS_COLAB = None
 _FS_INSUMOS = None
+_FS_FICHAS = None
 try:
     from confeitaria.repos_colaboradores import ColaboradoresRepo
     _FS_COLAB = ColaboradoresRepo()
@@ -47,6 +48,12 @@ try:
     _FS_INSUMOS = InsumosRepo()
 except Exception:
     _FS_INSUMOS = None
+
+try:
+    from confeitaria.repos_fichas import FichasRepo
+    _FS_FICHAS = FichasRepo()
+except Exception:
+    _FS_FICHAS = None
 
 
 def _wrap_dicts_as_objs(items):
@@ -141,26 +148,15 @@ def home(request):
 @check_group("RH")
 def colaboradores_list(request):
     """
-    Lista de colaboradores usando apenas SQLite.
-    Temporariamente desabilitado o Firestore para garantir que use SQLite.
+    Lista de colaboradores - 100% FIRESTORE
     """
-    # FORÇAR SEMPRE FIRESTORE
-    use_fs = True  # 100% Firestore mode
     query = request.GET.get('q')
-
-    if use_fs:
-        items = _FS_COLAB.list(limit=1000)
-        if query:
-            q = (query or "").strip().lower()
-            items = [it for it in items if (it.get("nome") or "").lower().find(q) >= 0]
-        colaboradores = _wrap_dicts_as_objs(items)
-        return render(request, "core/colaboradores_list.html", {"colaboradores": colaboradores})
-
+    
+    items = _FS_COLAB.list(limit=1000)
     if query:
-        colaboradores = Colaborador.objects.filter(
-            nome__icontains=query).order_by('nome')
-    else:
-        colaboradores = Colaborador.objects.all().order_by('nome')
+        q = (query or "").strip().lower()
+        items = [it for it in items if (it.get("nome") or "").lower().find(q) >= 0]
+    colaboradores = _wrap_dicts_as_objs(items)
     return render(request, "core/colaboradores_list.html", {"colaboradores": colaboradores})
 
 
@@ -407,7 +403,13 @@ def colaboradores_detail(request, id):
 @login_required
 @check_group("Administrador")
 def usuarios_create(request):
-    colaboradores = Colaborador.objects.all().order_by("nome")
+    """
+    Cria usuários Django vinculados a colaboradores do Firestore
+    """
+    # Busca colaboradores do Firestore
+    colaboradores_list = _FS_COLAB.list(limit=1000)
+    colaboradores = _wrap_dicts_as_objs(colaboradores_list)
+    
     if request.method == "POST":
         username = request.POST.get("username")
         senha_nova = request.POST.get("senha_nova")
@@ -423,17 +425,28 @@ def usuarios_create(request):
         elif not colaborador_id:
             messages.error(request, "Selecione um colaborador.")
         else:
-            colaborador = get_object_or_404(Colaborador, id=colaborador_id)
-            user = User.objects.create_user(
-                username=username, password=senha_nova)
+            # Busca colaborador no Firestore
+            colab_data = _FS_COLAB.get(str(colaborador_id))
+            if not colab_data:
+                messages.error(request, "Colaborador não encontrado.")
+                return redirect("criar_usuario")
+            
+            # Cria usuário Django
+            user = User.objects.create_user(username=username, password=senha_nova)
             if grupo:
                 grupo_obj, _ = Group.objects.get_or_create(name=grupo)
                 user.groups.add(grupo_obj)
-            colaborador.usuario = user
-            colaborador.save()
-            messages.success(
-                request, f"Usuário {username} cadastrado com sucesso!")
+            
+            # Atualiza colaborador no Firestore com o ID do usuário
+            _FS_COLAB.update_colab(str(colaborador_id), {
+                **colab_data,
+                'usuario_id': user.id,
+                'usuario_username': user.username
+            })
+            
+            messages.success(request, f"Usuário {username} cadastrado com sucesso!")
             return redirect("criar_usuario")
+    
     return render(request, "core/criar_usuario.html", {"colaboradores": colaboradores})
 
 
@@ -463,16 +476,9 @@ def usuario_delete(request, id):
 @login_required
 @check_group("Insumos")
 def insumos_list(request):
-    """
-    Lista de insumos - 100% FIRESTORE
-    """
-    use_fs = True  # 100% Firestore - FORÇADO
-    if use_fs:
-        items = _FS_INSUMOS.list(limit=1000)
-        insumos = _wrap_dicts_as_objs(items)
-        return render(request, "core/insumos_list.html", {"insumos": insumos})
-
-    insumos = Insumo.objects.all()
+    """Lista de insumos - 100% FIRESTORE"""
+    items = _FS_INSUMOS.list(limit=1000)
+    insumos = _wrap_dicts_as_objs(items)
     return render(request, "core/insumos_list.html", {"insumos": insumos})
 
 
@@ -913,25 +919,36 @@ def produtos_create(request):
     Salva APENAS no Firestore.
     Acesso: grupo Confeitaria e Administrador.
     """
-    form = ProdutoProntoForm(request.POST or None)
+    form = ProdutoProntoForm(request.POST or None, use_firestore=True)
     if request.method == "POST" and form.is_valid():
         from confeitaria.repos_produtos import ProdutosRepo
+        from confeitaria.repos_catalogo import CatalogoRepo
+        
         repo = ProdutosRepo()
+        catalogo_repo = CatalogoRepo()
         cleaned = form.cleaned_data
+        
+        # Busca dados do catálogo no Firestore
+        catalogo_id = cleaned.get('catalogo')
+        catalogo_nome = ''
+        if catalogo_id:
+            cat_data = catalogo_repo.get(str(catalogo_id))
+            if cat_data:
+                catalogo_nome = cat_data.get('nome', '')
+        
         data = {
             'quantidade': cleaned.get('quantidade', 0),
             'data_fabricacao': cleaned.get('data_fabricacao').isoformat() if cleaned.get('data_fabricacao') else None,
             'data_validade': cleaned.get('data_validade').isoformat() if cleaned.get('data_validade') else None,
             'peso_produto': cleaned.get('peso_produto', 0),
-            'catalogo_id': cleaned.get('catalogo').id if cleaned.get('catalogo') else None,
-            'catalogo_nome': cleaned.get('catalogo').nome if cleaned.get('catalogo') else '',
+            'catalogo_id': str(catalogo_id) if catalogo_id else None,
+            'catalogo_nome': catalogo_nome,
         }
         
         # Salva no Firestore
         result = repo.create_produto(data)
         
-        # messages.success(
-        #     request, f"Produto {data['catalogo_nome']} cadastrado com sucesso!")
+        messages.success(request, f"Produto {data['catalogo_nome']} cadastrado com sucesso!")
         return redirect("produtos_list")
 
     return render(request, "core/form.html", {"form": form, "titulo": "Cadastrar Produto"})
@@ -975,13 +992,17 @@ def produtos_edit(request, id):
         'data_validade': parse_data(produto_data.get('data_validade')),
         'peso_produto': produto_data.get('peso_produto', 0),
     }
-    # Catalogo: busca pelo id salvo
-    from core.models import CatalogoProduto
+    
+    # Catalogo: busca pelo id salvo no Firestore
+    from confeitaria.repos_catalogo import CatalogoRepo
+    catalogo_repo = CatalogoRepo()
     catalogo_id = produto_data.get('catalogo_id')
     if catalogo_id:
-        try:
-            initial['catalogo'] = CatalogoProduto.objects.get(id=catalogo_id)
-        except CatalogoProduto.DoesNotExist:
+        catalogo_data = catalogo_repo.get(str(catalogo_id))
+        if catalogo_data:
+            # Cria objeto simulado para o formulário
+            initial['catalogo'] = catalogo_id  # Passa o ID do Firestore
+        else:
             initial['catalogo'] = None
     else:
         initial['catalogo'] = None
@@ -990,13 +1011,22 @@ def produtos_edit(request, id):
     if request.method == "POST" and form.is_valid():
         # Atualiza no Firestore
         cleaned = form.cleaned_data
+        
+        # Busca nome do catálogo no Firestore
+        catalogo_escolhido = cleaned.get('catalogo')
+        catalogo_nome = ''
+        if catalogo_escolhido:
+            cat_data = catalogo_repo.get(str(catalogo_escolhido))
+            if cat_data:
+                catalogo_nome = cat_data.get('nome', '')
+        
         update_data = {
             'quantidade': cleaned.get('quantidade', 0),
             'data_fabricacao': cleaned.get('data_fabricacao').isoformat() if cleaned.get('data_fabricacao') else None,
             'data_validade': cleaned.get('data_validade').isoformat() if cleaned.get('data_validade') else None,
             'peso_produto': cleaned.get('peso_produto', 0),
-            'catalogo_id': cleaned.get('catalogo').id if cleaned.get('catalogo') else None,
-            'catalogo_nome': cleaned.get('catalogo').nome if cleaned.get('catalogo') else '',
+            'catalogo_id': str(catalogo_escolhido) if catalogo_escolhido else None,
+            'catalogo_nome': catalogo_nome,
         }
         repo.update_produto(str(id), update_data)
         messages.success(
@@ -1242,8 +1272,15 @@ def criar_ficha(request):
             p_obj.catalogo = SimpleNamespace(nome=p_obj.catalogo_nome)
         produtos_list.append(p_obj)
     
-    colaborador_logado = None if request.user.is_superuser else Colaborador.objects.filter(
-        usuario=request.user).first()
+    # Busca colaborador logado do Firestore
+    colaborador_logado = None
+    if not request.user.is_superuser:
+        # Busca colaborador pelo usuario_id no Firestore
+        colaboradores_list = _FS_COLAB.list(limit=1000)
+        for colab_data in colaboradores_list:
+            if colab_data.get('usuario_id') == request.user.id:
+                colaborador_logado = SimpleNamespace(**colab_data)
+                break
 
     # Produto selecionado via GET ou POST
     produto_id = request.GET.get("produto") or request.POST.get("produto")
@@ -1450,20 +1487,40 @@ def visualizar_ficha(request, ficha_id):
 @login_required
 @check_group("Confeitaria")
 def fichas_list(request):
-    fichas = FichaProducao.objects.select_related(
-        "produto", "colaborador").order_by("-data_assinatura")
+    """Lista todas as fichas de produção do Firestore."""
+    items = _FS_FICHAS.list(limit=1000)
+    fichas = _wrap_dicts_as_objs(items)
     return render(request, "core/fichas_list.html", {"fichas": fichas})
 
 
 @login_required
 @check_group("Confeitaria")
 def editar_ficha(request, id):
-    ficha = get_object_or_404(FichaProducao, id=id)
-    form = FichaProducaoForm(request.POST or None, instance=ficha)
-    if request.method == "POST" and form.is_valid():
-        form.save()
-        messages.success(request, "Ficha de produção atualizada com sucesso!")
+    """Edita uma ficha de produção no Firestore."""
+    data = _FS_FICHAS.get_by_id(str(id))
+    if not data:
+        messages.error(request, "Ficha não encontrada.")
         return redirect("fichas_list")
+    
+    form = FichaProducaoForm(request.POST or None, initial=data)
+    if request.method == "POST" and form.is_valid():
+        cleaned = form.cleaned_data
+@login_required
+@check_group("Confeitaria")
+def deletar_ficha(request, id):
+    """Deleta uma ficha de produção do Firestore."""
+    data = _FS_FICHAS.get_by_id(str(id))
+    if not data:
+        messages.error(request, "Ficha não encontrada.")
+        return redirect("fichas_list")
+    
+    if request.method == "POST":
+        _FS_FICHAS.delete(str(id))
+        messages.success(request, "Ficha de produção deletada com sucesso!")
+        return redirect("fichas_list")
+    
+    ficha = _wrap_dicts_as_objs([data])[0]
+    return render(request, "core/delete.html", {"obj": ficha})
     return render(request, "core/form.html", {"form": form, "titulo": "Editar Ficha de Produção"})
 
 
@@ -1481,17 +1538,35 @@ def deletar_ficha(request, id):
 @login_required
 @check_group("Administrador")
 def catalogo_list(request):
-    catalogo = CatalogoProduto.objects.all()
+    """
+    Lista produtos do catálogo - 100% FIRESTORE
+    """
+    from confeitaria.repos_catalogo import CatalogoRepo
+    repo = CatalogoRepo()
+    catalogo_list = repo.list(limit=1000)
+    catalogo = _wrap_dicts_as_objs(catalogo_list)
     return render(request, "core/catalogo_list.html", {"catalogo": catalogo})
 
 
 @login_required
 @check_group("Administrador")
 def catalogo_create(request):
+    """
+    Cria produto no catálogo - 100% FIRESTORE
+    """
     if request.method == "POST":
+        from confeitaria.repos_catalogo import CatalogoRepo
+        repo = CatalogoRepo()
+        
         nome = request.POST.get("nome")
         descricao = request.POST.get("descricao")
-        CatalogoProduto.objects.create(nome=nome, descricao=descricao)
+        
+        data = {
+            'nome': nome,
+            'descricao': descricao,
+            'criado_em': timezone.now().isoformat()
+        }
+        repo.create_catalogo(data)
         messages.success(request, "Produto adicionado ao catálogo!")
         return redirect("catalogo_list")
     return render(request, "core/catalogo_form.html")
@@ -1500,24 +1575,53 @@ def catalogo_create(request):
 @login_required
 @check_group("Administrador")
 def catalogo_edit(request, pk):
-    catalogo_item = get_object_or_404(CatalogoProduto, id=pk)
+    """
+    Edita produto do catálogo - 100% FIRESTORE
+    """
+    from confeitaria.repos_catalogo import CatalogoRepo
+    repo = CatalogoRepo()
+    
+    catalogo_data = repo.get(str(pk))
+    if not catalogo_data:
+        messages.error(request, "Produto não encontrado.")
+        return redirect("catalogo_list")
+    
     if request.method == "POST":
         nome = request.POST.get("nome")
         descricao = request.POST.get("descricao")
-        catalogo_item.nome = nome
-        catalogo_item.descricao = descricao
-        catalogo_item.save()
+        
+        update_data = {
+            **catalogo_data,
+            'nome': nome,
+            'descricao': descricao,
+            'atualizado_em': timezone.now().isoformat()
+        }
+        repo.update_catalogo(str(pk), update_data)
         messages.success(request, "Produto atualizado com sucesso!")
         return redirect("catalogo_list")
+    
+    catalogo_item = SimpleNamespace(**catalogo_data)
     return render(request, "core/catalogo_form.html", {"catalogo": catalogo_item})
 
 
 @login_required
 @check_group("Administrador")
 def catalogo_delete(request, id):
-    item = get_object_or_404(CatalogoProduto, id=id)
+    """
+    Deleta produto do catálogo - 100% FIRESTORE
+    """
+    from confeitaria.repos_catalogo import CatalogoRepo
+    repo = CatalogoRepo()
+    
+    catalogo_data = repo.get(str(id))
+    if not catalogo_data:
+        messages.error(request, "Produto não encontrado.")
+        return redirect("catalogo_list")
+    
     if request.method == "POST":
-        item.delete()
+        repo.delete(str(id))
         messages.success(request, "Produto do catálogo deletado!")
         return redirect("catalogo_list")
+    
+    item = SimpleNamespace(**catalogo_data)
     return render(request, "core/delete.html", {"obj": item})

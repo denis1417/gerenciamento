@@ -611,46 +611,165 @@ def insumos_delete(request, id):
 @login_required
 @check_group("Insumos")
 def saida_insumo_list(request):
-    saidas = SaidaInsumo.objects.all().order_by("-data")
+    """
+    Lista de saídas de insumos - 100% FIRESTORE
+    """
+    from confeitaria.repos_saidas import SaidasRepo
+    from datetime import datetime, date
+    
+    saidas_repo = SaidasRepo()
+    saidas_list = saidas_repo.list(limit=1000)
+    
+    # Converte para objetos acessíveis pelo template
+    saidas = []
+    for s in saidas_list:
+        saida_obj = SimpleNamespace(**s)
+        
+        # Cria objetos simulados para insumo e colaboradores
+        saida_obj.insumo = SimpleNamespace(
+            id=s.get('insumo_id'),
+            nome=s.get('insumo_nome', ''),
+            unidade_base=s.get('insumo_unidade', '')
+        )
+        
+        # Colaborador entregando
+        saida_obj.colaborador_entregando = SimpleNamespace(
+            id=s.get('colaborador_entregando_id'),
+            nome=s.get('colaborador_entregando_nome', '')
+        )
+        
+        # Colaborador que retira
+        saida_obj.colaborador_retira = SimpleNamespace(
+            id=s.get('colaborador_retira_id'),
+            nome=s.get('colaborador_retira_nome', '')
+        )
+        
+        # Converte data ISO para objeto date/datetime
+        data_value = s.get('data')
+        
+        if isinstance(data_value, str):
+            try:
+                # Tenta parsear como datetime ISO (com hora)
+                dt = datetime.fromisoformat(data_value.replace('Z', '+00:00'))
+                saida_obj.data = dt  # Mantém como datetime
+            except Exception:
+                try:
+                    # Tenta parsear como data simples
+                    saida_obj.data = datetime.strptime(data_value[:10], "%Y-%m-%d").date()
+                except Exception:
+                    saida_obj.data = datetime.now()
+        elif hasattr(data_value, 'date'):
+            # Se já é um datetime, usa direto
+            saida_obj.data = data_value
+        elif isinstance(data_value, date):
+            # Se é uma data, converte para datetime
+            saida_obj.data = datetime.combine(data_value, datetime.min.time())
+        else:
+            saida_obj.data = datetime.now()
+        
+        # Calcula quantidade_total para o template
+        saida_obj.quantidade_total = float(s.get('quantidade_principal', 0)) + float(s.get('quantidade_complementar', 0))
+        
+        # Unidade
+        saida_obj.unidade = s.get('unidade', 'un')
+        
+        saidas.append(saida_obj)
+    
     return render(request, "core/saida_insumo_list.html", {"saidas": saidas})
 
 
 @login_required
 @check_group("Insumos")
 def saida_insumo_create(request):
-    form = SaidaInsumoForm(request.POST or None)
-
-    if request.method == "POST" and form.is_valid():
-        saida = form.save(commit=False)
-        insumo = saida.insumo
-
-        # Pega a quantidade digitada
-        quantidade = form.cleaned_data.get('quantidade') or 0
-
+    """
+    Registra saída de insumo - 100% FIRESTORE
+    """
+    use_fs = True  # 100% Firestore
+    
+    if request.method == "POST":
+        from confeitaria.repos_saidas import SaidasRepo
+        saidas_repo = SaidasRepo()
+        
+        # Pega dados diretamente do POST (não usa form.cleaned_data para evitar validação do ModelForm)
+        insumo_id = request.POST.get('insumo')
+        colab_entregando_id = request.POST.get('colaborador_entregando')
+        colab_retira_id = request.POST.get('colaborador_retira')
+        quantidade_str = request.POST.get('quantidade', '0')
+        unidade = request.POST.get('unidade')
+        
+        # Valida quantidade
+        try:
+            quantidade = float(quantidade_str)
+        except (ValueError, TypeError):
+            quantidade = 0
+        
         if quantidade == 0:
             messages.error(request, "Você precisa informar a quantidade.")
-            return redirect(request.path)
-
-        if quantidade > insumo.quantidade_total:
+            # Recarrega o formulário
+            form = SaidaInsumoForm(request.POST, use_firestore=use_fs)
+            return render(request, "core/form.html", {"form": form, "titulo": "Registrar Saída de Insumo"})
+        
+        # Busca dados do Firestore
+        insumo_data = _FS_INSUMOS.get(str(insumo_id))
+        colab_entregando_data = _FS_COLAB.get(str(colab_entregando_id))
+        colab_retira_data = _FS_COLAB.get(str(colab_retira_id))
+        
+        if not insumo_data:
+            messages.error(request, "Insumo não encontrado no Firestore.")
+            form = SaidaInsumoForm(request.POST, use_firestore=use_fs)
+            return render(request, "core/form.html", {"form": form, "titulo": "Registrar Saída de Insumo"})
+        
+        if not colab_entregando_data:
+            messages.error(request, "Colaborador que entrega não encontrado no Firestore.")
+            form = SaidaInsumoForm(request.POST, use_firestore=use_fs)
+            return render(request, "core/form.html", {"form": form, "titulo": "Registrar Saída de Insumo"})
+        
+        if not colab_retira_data:
+            messages.error(request, "Colaborador que retira não encontrado no Firestore.")
+            form = SaidaInsumoForm(request.POST, use_firestore=use_fs)
+            return render(request, "core/form.html", {"form": form, "titulo": "Registrar Saída de Insumo"})
+        
+        # Valida estoque
+        quantidade_total = float(insumo_data.get('quantidade_total', 0))
+        if quantidade > quantidade_total:
             messages.error(
                 request,
-                f"A quantidade solicitada ({quantidade} {insumo.unidade_base}) "
-                f"excede o estoque disponível ({insumo.quantidade_total} {insumo.unidade_base})."
+                f"A quantidade solicitada ({quantidade} {insumo_data.get('unidade_base', '')}) "
+                f"excede o estoque disponível ({quantidade_total} {insumo_data.get('unidade_base', '')})."
             )
-            return redirect(request.path)
-
-        # Atualiza o estoque
-        insumo.quantidade_total -= quantidade
-        insumo.save()
-
-        # Salva a saída no modelo
-        saida.quantidade_principal = quantidade
-        saida.quantidade_complementar = 0  # zera complementar
-        saida.save()
-
-        messages.success(request, "Saída de insumo registrada com sucesso.")
+            form = SaidaInsumoForm(request.POST, use_firestore=use_fs)
+            return render(request, "core/form.html", {"form": form, "titulo": "Registrar Saída de Insumo"})
+        
+        # Atualiza estoque no Firestore
+        nova_quantidade = quantidade_total - quantidade
+        _FS_INSUMOS.set(str(insumo_id), {
+            **insumo_data,  # Mantém todos os campos existentes
+            'quantidade_total': nova_quantidade
+        })
+        
+        # Salva a saída no Firestore
+        saida_data = {
+            'insumo_id': str(insumo_id),
+            'insumo_nome': insumo_data.get('nome', ''),
+            'insumo_unidade': insumo_data.get('unidade_base', ''),
+            'colaborador_entregando_id': str(colab_entregando_id),
+            'colaborador_entregando_nome': colab_entregando_data.get('nome', ''),
+            'colaborador_retira_id': str(colab_retira_id),
+            'colaborador_retira_nome': colab_retira_data.get('nome', ''),
+            'quantidade_principal': float(quantidade),
+            'quantidade_complementar': 0.0,
+            'unidade': unidade,
+            'data': timezone.now().isoformat(),
+            'observacoes': '',
+        }
+        
+        saidas_repo.create_saida(saida_data)
+        
+        messages.success(request, "Saída de insumo registrada com sucesso no Firestore!")
         return redirect("saida_insumo_list")
-
+    
+    # GET request - apenas exibe o formulário
+    form = SaidaInsumoForm(use_firestore=use_fs)
     return render(request, "core/form.html", {"form": form, "titulo": "Registrar Saída de Insumo"})
 
 
@@ -659,24 +778,47 @@ def saida_insumo_create(request):
 def saida_insumo_delete(request, id):
     """
     Deleta uma saída de insumo e devolve a quantidade retirada ao insumo original.
+    100% FIRESTORE
     """
-    saida = get_object_or_404(SaidaInsumo, pk=id)
-    insumo = saida.insumo
-
+    from confeitaria.repos_saidas import SaidasRepo
+    saidas_repo = SaidasRepo()
+    
+    saida_data = saidas_repo.get(str(id))
+    
+    if not saida_data:
+        messages.error(request, "Saída de insumo não encontrada.")
+        return redirect('saida_insumo_list')
+    
     if request.method == "POST":
         # Recupera a quantidade total em unidade base
-        quantidade_devolvida = saida.quantidade_total
-        # Atualiza o estoque do insumo
-        insumo.quantidade_total += quantidade_devolvida
-        insumo.save()
-
-        # Deleta a saída
-        saida.delete()
+        quantidade_devolvida = float(saida_data.get('quantidade_principal', 0)) + float(saida_data.get('quantidade_complementar', 0))
+        
+        # Busca o insumo no Firestore e devolve a quantidade
+        insumo_id = saida_data.get('insumo_id')
+        insumo_data = _FS_INSUMOS.get(str(insumo_id))
+        
+        if insumo_data:
+            quantidade_atual = float(insumo_data.get('quantidade_total', 0))
+            nova_quantidade = quantidade_atual + quantidade_devolvida
+            _FS_INSUMOS.set(str(insumo_id), {**insumo_data, 'quantidade_total': nova_quantidade})
+        
+        # Deleta a saída do Firestore
+        saidas_repo.delete(str(id))
+        
         messages.success(
-            request, f"Saída de {insumo.nome} removida com sucesso e estoque atualizado.")
-        # ajuste para a sua URL de listagem de saídas
+            request, f"Saída de {saida_data.get('insumo_nome', 'insumo')} removida com sucesso e estoque atualizado.")
         return redirect('saida_insumo_list')
-
+    
+    # Cria objeto para o template
+    saida = SimpleNamespace(**saida_data)
+    saida.insumo = SimpleNamespace(nome=saida_data.get('insumo_nome', ''))
+    saida.quantidade_total = float(saida_data.get('quantidade_principal', 0)) + float(saida_data.get('quantidade_complementar', 0))
+    saida.unidade = saida_data.get('unidade', 'un')
+    
+    # Formata a exibição da quantidade (ex: "12030 kg")
+    quantidade_formatada = f"{saida.quantidade_total:.0f}" if saida.quantidade_total == int(saida.quantidade_total) else f"{saida.quantidade_total}"
+    saida.exibir_quantidade = f"{quantidade_formatada} {saida.unidade}"
+    
     return render(request, "core/saida_insumo_confirm_delete.html", {"saida": saida})
 
 # =========================================================
@@ -691,17 +833,64 @@ def produtos_list(request):
     """
     Exibe todos os produtos prontos cadastrados.
     Acesso: grupo Confeitaria e Administrador.
-    (Mantido no SQLite por enquanto para conservar a lógica de ficha/validades)
+    Busca produtos e fichas do Firestore.
     """
-    produtos = ProdutoPronto.objects.select_related('catalogo').all()
-
-    for p in produtos:
-        # Verifica se há ficha de produção associada
-        ficha = FichaProducao.objects.filter(produto=p).first()
-        p.ficha_existe = bool(ficha)
-        p.ficha = ficha
-
-        # Define classe CSS conforme a validade
+    from confeitaria.repos_produtos import ProdutosRepo
+    from confeitaria.repos_fichas import FichasRepo
+    
+    produtos_repo = ProdutosRepo()
+    fichas_repo = FichasRepo()
+    
+    items = produtos_repo.list(limit=1000)
+    produtos = []
+    
+    for d in items:
+        class ProdutoProntoFS:
+            pass
+        p = ProdutoProntoFS()
+        p.id = d.get('id', '')
+        p.catalogo_nome = d.get('catalogo_nome', '')
+        p.quantidade = d.get('quantidade', 0)
+        
+        # Formatação igual ao SQLite (ex: 1,0)
+        try:
+            p.quantidade_formatada = f"{float(p.quantidade):.1f}".replace('.', ',')
+        except Exception:
+            p.quantidade_formatada = str(p.quantidade)
+        
+        # Datas
+        from datetime import date, timedelta, datetime
+        def parse_data(dt):
+            from datetime import date, datetime
+            # Google Firestore DatetimeWithNanoseconds
+            if hasattr(dt, 'date'):
+                return dt.date()
+            if isinstance(dt, date):
+                return dt
+            if isinstance(dt, datetime):
+                return dt.date()
+            if isinstance(dt, str):
+                try:
+                    return datetime.strptime(dt[:10], "%Y-%m-%d").date()
+                except Exception:
+                    return None
+            return None
+        
+        p.data_fabricacao = parse_data(d.get('data_fabricacao'))
+        p.data_validade = parse_data(d.get('data_validade'))
+        p.peso_produto = d.get('peso_produto', 0)
+        
+        # Verificar se existe ficha para este produto no Firestore
+        try:
+            fichas_do_produto = fichas_repo.list_by_produto(str(p.id), limit=1)
+            p.ficha_existe = len(fichas_do_produto) > 0
+            p.ficha = SimpleNamespace(**fichas_do_produto[0]) if p.ficha_existe else None
+        except Exception as e:
+            p.ficha_existe = False
+            p.ficha = None
+        
+        # Classe CSS conforme validade
+        p.row_class = ""
         if p.data_validade:
             if p.data_validade < date.today():
                 p.row_class = "produto-vencido"
@@ -709,11 +898,9 @@ def produtos_list(request):
                 p.row_class = "produto-hoje"
             elif p.data_validade <= date.today() + timedelta(days=3):
                 p.row_class = "produto-proximo"
-            else:
-                p.row_class = ""
-        else:
-            p.row_class = ""
-
+        
+        produtos.append(p)
+    
     return render(request, "core/produtos_list.html", {"produtos": produtos})
 
 
@@ -723,13 +910,28 @@ def produtos_list(request):
 def produtos_create(request):
     """
     Permite o cadastro de novos produtos prontos.
+    Salva APENAS no Firestore.
     Acesso: grupo Confeitaria e Administrador.
     """
     form = ProdutoProntoForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
-        produto = form.save()
-        messages.success(
-            request, f"Produto {produto.catalogo.nome} cadastrado com sucesso!")
+        from confeitaria.repos_produtos import ProdutosRepo
+        repo = ProdutosRepo()
+        cleaned = form.cleaned_data
+        data = {
+            'quantidade': cleaned.get('quantidade', 0),
+            'data_fabricacao': cleaned.get('data_fabricacao').isoformat() if cleaned.get('data_fabricacao') else None,
+            'data_validade': cleaned.get('data_validade').isoformat() if cleaned.get('data_validade') else None,
+            'peso_produto': cleaned.get('peso_produto', 0),
+            'catalogo_id': cleaned.get('catalogo').id if cleaned.get('catalogo') else None,
+            'catalogo_nome': cleaned.get('catalogo').nome if cleaned.get('catalogo') else '',
+        }
+        
+        # Salva no Firestore
+        result = repo.create_produto(data)
+        
+        # messages.success(
+        #     request, f"Produto {data['catalogo_nome']} cadastrado com sucesso!")
         return redirect("produtos_list")
 
     return render(request, "core/form.html", {"form": form, "titulo": "Cadastrar Produto"})
@@ -743,15 +945,66 @@ def produtos_edit(request, id):
     Edita um produto existente.
     Acesso: grupo Confeitaria e Administrador.
     """
-    produto = get_object_or_404(ProdutoPronto, id=id)
-    form = ProdutoProntoForm(request.POST or None, instance=produto)
+    from confeitaria.repos_produtos import ProdutosRepo
+    repo = ProdutosRepo()
+    produto_data = repo.get(str(id))
+    if not produto_data:
+        from django.http import Http404
+        raise Http404("Produto não encontrado no Firestore.")
+
+    # Preenche o formulário manualmente
+    from core.forms import ProdutoProntoForm
+    from datetime import datetime, date
+    def parse_data(dt):
+        if hasattr(dt, 'date'):
+            return dt.date()
+        if isinstance(dt, date):
+            return dt
+        if isinstance(dt, datetime):
+            return dt.date()
+        if isinstance(dt, str):
+            try:
+                return datetime.strptime(dt[:10], "%Y-%m-%d").date()
+            except Exception:
+                return None
+        return None
+
+    initial = {
+        'quantidade': produto_data.get('quantidade', 0),
+        'data_fabricacao': parse_data(produto_data.get('data_fabricacao')),
+        'data_validade': parse_data(produto_data.get('data_validade')),
+        'peso_produto': produto_data.get('peso_produto', 0),
+    }
+    # Catalogo: busca pelo id salvo
+    from core.models import CatalogoProduto
+    catalogo_id = produto_data.get('catalogo_id')
+    if catalogo_id:
+        try:
+            initial['catalogo'] = CatalogoProduto.objects.get(id=catalogo_id)
+        except CatalogoProduto.DoesNotExist:
+            initial['catalogo'] = None
+    else:
+        initial['catalogo'] = None
+
+    form = ProdutoProntoForm(request.POST or None, initial=initial)
     if request.method == "POST" and form.is_valid():
-        form.save()
+        # Atualiza no Firestore
+        cleaned = form.cleaned_data
+        update_data = {
+            'quantidade': cleaned.get('quantidade', 0),
+            'data_fabricacao': cleaned.get('data_fabricacao').isoformat() if cleaned.get('data_fabricacao') else None,
+            'data_validade': cleaned.get('data_validade').isoformat() if cleaned.get('data_validade') else None,
+            'peso_produto': cleaned.get('peso_produto', 0),
+            'catalogo_id': cleaned.get('catalogo').id if cleaned.get('catalogo') else None,
+            'catalogo_nome': cleaned.get('catalogo').nome if cleaned.get('catalogo') else '',
+        }
+        repo.update_produto(str(id), update_data)
         messages.success(
-            request, f"Produto {produto.catalogo.nome} atualizado com sucesso!")
+            request, f"Produto {update_data['catalogo_nome']} atualizado com sucesso!")
         return redirect("produtos_list")
 
-    return render(request, "core/form.html", {"form": form, "titulo": f"Editar Produto: {produto.catalogo.nome}"})
+    titulo = f"Editar Produto: {produto_data.get('catalogo_nome', '')}" if produto_data.get('catalogo_nome') else "Editar Produto"
+    return render(request, "core/form.html", {"form": form, "titulo": titulo})
 
 
 # -------------------- EXCLUIR PRODUTO --------------------
@@ -762,15 +1015,33 @@ def produtos_delete(request, id):
     Exclui um produto existente.
     Acesso: grupo Confeitaria e Administrador.
     """
-    produto = get_object_or_404(ProdutoPronto, id=id)
+    from confeitaria.repos_produtos import ProdutosRepo
+    repo = ProdutosRepo()
+    produto_data = repo.get(str(id))
+    if not produto_data:
+        from django.http import Http404
+        raise Http404("Produto não encontrado no Firestore.")
+
+    class ProdutoProntoFS:
+        pass
+    p = ProdutoProntoFS()
+    p.id = produto_data.get('id', '')
+    p.catalogo_nome = produto_data.get('catalogo_nome', '')
+    p.quantidade = produto_data.get('quantidade', 0)
+    try:
+        p.quantidade_formatada = f"{float(p.quantidade):.1f}".replace('.', ',')
+    except Exception:
+        p.quantidade_formatada = str(p.quantidade)
+
     if request.method == "POST":
-        nome_produto = produto.catalogo.nome
-        produto.delete()
+        repo.delete(str(id))
         messages.success(
-            request, f"Produto {nome_produto} excluído com sucesso!")
+            request, f"Produto {p.catalogo_nome} excluído com sucesso!")
         return redirect("produtos_list")
 
-    return render(request, "core/delete.html", {"obj": produto})
+    # Monta string igual ao modelo desejado
+    obj_str = f"{p.catalogo_nome} - {p.quantidade_formatada} unidades"
+    return render(request, "core/confirm_delete.html", {"obj": obj_str})
 
 
 @login_required
@@ -783,34 +1054,50 @@ def relatorio_insumos(request):
     Permite registrar vistoria (checklist) e salvar histórico.
     """
     relatorio = []
-    insumos = Insumo.objects.all()
+    from confeitaria.repos_insumos import InsumosRepo
+    from confeitaria.repos_saidas import SaidasRepo
+    from confeitaria.repos_fichas import FichasRepo
+    insumos_repo = InsumosRepo()
+    saidas_repo = SaidasRepo()
+    fichas_repo = FichasRepo()
+
+    insumos = insumos_repo.list(limit=1000)
+    saidas = saidas_repo.list(limit=1000)
+    fichas = fichas_repo.list(limit=1000)
 
     for insumo in insumos:
-        # Calcula quantidade retirada
-        saida_qs = SaidaInsumo.objects.filter(insumo=insumo)
-        soma_principal = saida_qs.aggregate(
-            total=Sum('quantidade_principal'))['total'] or 0
-        soma_complementar = saida_qs.aggregate(
-            total=Sum('quantidade_complementar'))['total'] or 0
-        retirado = float(soma_principal) + float(soma_complementar)
+        insumo_id = insumo.get('id')
+        # Quantidade retirada (somatório das saídas)
+        soma_principal = sum(float(s.get('quantidade_principal', 0)) for s in saidas if s.get('insumo_id') == insumo_id)
+        soma_complementar = sum(float(s.get('quantidade_complementar', 0)) for s in saidas if s.get('insumo_id') == insumo_id)
+        retirado = soma_principal + soma_complementar
 
-        # Calcula quantidade usada em fichas
-        usado = float(FichaInsumo.objects.filter(insumo=insumo).aggregate(
-            total=Sum('quantidade_usada')
-        )['total'] or 0)
+        # Quantidade usada em fichas (somatório das fichas que usam esse insumo)
+        usado = sum(float(f.get('quantidade_usada', 0)) for f in fichas if f.get('insumo_id') == insumo_id)
 
-        # Calcula teórico
         teorico = max(retirado - usado, 0)
 
+        # Simula objeto insumo para template
+        class InsumoFS:
+            pass
+        insumo_obj = InsumoFS()
+        insumo_obj.id = insumo_id
+        insumo_obj.nome = insumo.get('nome', '')
+        insumo_obj.unidade_base = insumo.get('unidade_base', '')
+        insumo_obj.quantidade_total = insumo.get('quantidade_total', 0)
+
         relatorio.append({
-            'insumo': insumo,
+            'insumo': insumo_obj,
             'retirado': retirado,
             'usado': usado,
             'teorico': teorico,
         })
 
-    # Salvar checklist / vistoria
+    # Salvar checklist / vistoria - 100% FIRESTORE
     if request.method == "POST":
+        from confeitaria.repos_vistorias import VistoriasRepo
+        vistorias_repo = VistoriasRepo()
+        
         for item in relatorio:
             real_str = request.POST.get(f"real_{item['insumo'].id}", "")
             if not real_str:
@@ -821,23 +1108,53 @@ def relatorio_insumos(request):
                 continue  # Ignora valores inválidos
             desperdicio = item['teorico'] - real
 
-            VistoriaInsumo.objects.create(
-                insumo=item['insumo'],
-                quantidade_retirada=item['retirado'],
-                quantidade_usada=item['usado'],
-                quantidade_teorica=item['teorico'],
-                quantidade_real=real,
-                desperdicio=desperdicio,
-                data_vistoria=date.today(),
-            )
+            # Salva no Firestore
+            vistoria_data = {
+                'insumo_id': item['insumo'].id,
+                'insumo_nome': item['insumo'].nome,
+                'insumo_unidade': item['insumo'].unidade_base,
+                'quantidade_retirada': float(item['retirado']),
+                'quantidade_usada': float(item['usado']),
+                'quantidade_teorica': float(item['teorico']),
+                'quantidade_real': float(real),
+                'desperdicio': float(desperdicio),
+                'data_vistoria': date.today().isoformat(),
+            }
+            vistorias_repo.create(vistoria_data)
 
         messages.success(request, "✅ Vistoria registrada com sucesso!")
         return redirect('relatorio_insumos')
 
-    # Histórico de checklists agrupados por data
-    checklists = VistoriaInsumo.objects.values(
-        'data_vistoria'
-    ).distinct().order_by('-data_vistoria')
+    # Histórico de checklists agrupados por data - 100% FIRESTORE
+    from confeitaria.repos_vistorias import VistoriasRepo
+    from datetime import datetime
+    vistorias_repo = VistoriasRepo()
+    datas_vistoria = vistorias_repo.get_datas_vistoria()
+    
+    # Formata datas para o formato brasileiro
+    meses = {
+        1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+        5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
+        9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
+    }
+    
+    checklists = []
+    for data_str in datas_vistoria:
+        try:
+            # Converte string ISO para datetime
+            data_obj = datetime.strptime(data_str, "%Y-%m-%d")
+            # Formata: "17 de Outubro de 2025"
+            data_formatada = f"{data_obj.day} de {meses[data_obj.month]} de {data_obj.year}"
+            checklists.append({
+                'data_vistoria': data_str,  # Mantém formato ISO para links
+                'data_formatada': data_formatada  # Formato brasileiro para exibição
+            })
+        except Exception:
+            # Se falhar, mantém formato original
+            checklists.append({
+                'data_vistoria': data_str,
+                'data_formatada': data_str
+            })
 
     context = {
         'relatorio': relatorio,
@@ -851,8 +1168,27 @@ def relatorio_insumos(request):
 def visualizar_checklist(request, data_vistoria):
     """
     Visualiza checklist de uma vistoria específica com opção de impressão.
+    100% FIRESTORE
     """
-    itens = VistoriaInsumo.objects.filter(data_vistoria=data_vistoria)
+    from confeitaria.repos_vistorias import VistoriasRepo
+    vistorias_repo = VistoriasRepo()
+    
+    # Busca vistorias do Firestore
+    vistorias_dict = vistorias_repo.get_by_data(data_vistoria)
+    
+    # Converte para lista de objetos
+    itens = []
+    for vistoria_id, vistoria_data in vistorias_dict.items():
+        item = SimpleNamespace(**vistoria_data)
+        item.id = vistoria_id
+        
+        # Cria objeto insumo simplificado para o template
+        item.insumo = SimpleNamespace(
+            nome=vistoria_data.get('insumo_nome', ''),
+            unidade_base=vistoria_data.get('insumo_unidade', '')
+        )
+        itens.append(item)
+    
     return render(request, 'core/checklist_vistoria.html', {
         'itens': itens,
         'data_vistoria': data_vistoria
@@ -862,9 +1198,16 @@ def visualizar_checklist(request, data_vistoria):
 @login_required
 @check_group(["Administrador", "Confeitaria"])
 def excluir_checklist(request, data_vistoria):
+    """
+    Exclui checklist de uma data específica.
+    100% FIRESTORE
+    """
     if request.method == "POST":
-        VistoriaInsumo.objects.filter(data_vistoria=data_vistoria).delete()
-        messages.success(request, "Checklist excluído com sucesso!")
+        from confeitaria.repos_vistorias import VistoriasRepo
+        vistorias_repo = VistoriasRepo()
+        
+        deleted_count = vistorias_repo.delete_by_data(data_vistoria)
+        messages.success(request, f"Checklist excluído com sucesso! ({deleted_count} registro(s) removido(s))")
         return redirect('relatorio_insumos')
     return redirect('relatorio_insumos')
 
@@ -872,85 +1215,195 @@ def excluir_checklist(request, data_vistoria):
 @login_required
 @check_group(["Administrador", "Confeitaria"])
 def criar_ficha(request):
-    produtos_list = ProdutoPronto.objects.all()
+    """
+    Cria uma ficha de produção usando APENAS Firestore (sem SQLite).
+    100% FIRESTORE
+    """
+    print(f"[DEBUG] Iniciando criar_ficha - Método: {request.method}")
+    
+    # Busca produtos e saídas do Firestore
+    from confeitaria.repos_produtos import ProdutosRepo
+    from confeitaria.repos_fichas import FichasRepo
+    from confeitaria.repos_saidas import SaidasRepo
+    from datetime import datetime
+    
+    produtos_repo = ProdutosRepo()
+    fichas_repo = FichasRepo()
+    saidas_repo = SaidasRepo()
+    
+    produtos_list_dict = produtos_repo.list(limit=1000)
+    
+    # Converte produtos Firestore para objetos com atributos acessíveis
+    produtos_list = []
+    for p_dict in produtos_list_dict:
+        p_obj = SimpleNamespace(**p_dict)
+        # Garantir que catalogo seja um objeto com atributo nome
+        if hasattr(p_obj, 'catalogo_nome'):
+            p_obj.catalogo = SimpleNamespace(nome=p_obj.catalogo_nome)
+        produtos_list.append(p_obj)
+    
     colaborador_logado = None if request.user.is_superuser else Colaborador.objects.filter(
         usuario=request.user).first()
 
     # Produto selecionado via GET ou POST
     produto_id = request.GET.get("produto") or request.POST.get("produto")
-    produto = get_object_or_404(
-        ProdutoPronto, id=produto_id) if produto_id else None
+    print(f"[DEBUG] produto_id obtido: {produto_id}")
+    
+    produto = None
+    if produto_id:
+        produto_dict = produtos_repo.get(produto_id)
+        if produto_dict:
+            produto = SimpleNamespace(**produto_dict)
+            if hasattr(produto, 'catalogo_nome'):
+                produto.catalogo = SimpleNamespace(nome=produto.catalogo_nome)
+            produto.id = produto_id
+            print(f"[DEBUG] Produto carregado do Firestore: ID={produto_id}")
 
-    # Insumos disponíveis (soma principal + complementar > 0)
-    insumos_disponiveis = SaidaInsumo.objects.filter(
-        Q(quantidade_principal__gt=0) | Q(quantidade_complementar__gt=0)
-    ).select_related("insumo")
+    # Insumos disponíveis do Firestore - apenas saídas com quantidade > 0
+    saidas_list = saidas_repo.list(limit=1000)
+    insumos_disponiveis = []
+    for s in saidas_list:
+        quantidade_total = float(s.get('quantidade_principal', 0)) + float(s.get('quantidade_complementar', 0))
+        if quantidade_total > 0:
+            # Cria objeto simulado para compatibilidade com template
+            saida_obj = SimpleNamespace(**s)
+            saida_obj.quantidade_total = quantidade_total
+            saida_obj.insumo = SimpleNamespace(
+                id=s.get('insumo_id'),
+                nome=s.get('insumo_nome', ''),
+                unidade_base=s.get('insumo_unidade', '')
+            )
+            insumos_disponiveis.append(saida_obj)
+    
+    print(f"[DEBUG] Insumos disponíveis (com saídas): {len(insumos_disponiveis)}")
 
     # Inicializa formulário com peso do produto, se existir
-    initial_data = {"peso_produto": produto.peso_produto} if produto else {}
+    initial_data = {"peso_produto": getattr(produto, 'peso_produto', 0)} if produto else {}
     form = FichaProducaoForm(request.POST or None, initial=initial_data)
+    print(f"[DEBUG] Formulário inicializado")
 
     if request.method == "POST":
+        print(f"[DEBUG] POST recebido")
+        
         # Verifica senha
         senha = request.POST.get("senha_confirmacao")
         user = authenticate(username=request.user.username, password=senha)
         if user is None:
+            print(f"[DEBUG] Senha incorreta")
             messages.error(request, "Senha incorreta. Tente novamente.")
             return redirect(request.path)
 
         if not produto:
+            print(f"[DEBUG] Produto não selecionado")
             messages.error(request, "Selecione um produto.")
             return redirect(request.path)
 
+        print(f"[DEBUG] Validando formulário...")
         if form.is_valid():
-            ficha = form.save(commit=False)
-            ficha.produto = produto
-            ficha.peso_produto = produto.peso_produto  # garante o peso cadastrado
-            ficha.assinado_por = colaborador_logado.nome if colaborador_logado else request.user.username
-            ficha.data_assinatura = timezone.now()
-            ficha.colaborador = colaborador_logado
-            ficha.save()
-
-            # Registrar insumos usados
-            insumos_ids = request.POST.getlist("insumo_id[]")
+            print(f"[DEBUG] Formulário válido, salvando no Firestore...")
+            print(f"[DEBUG] produto_id a ser salvo na ficha: '{produto_id}' (tipo: {type(produto_id)})")
+            
+            # Prepara dados da ficha para o Firestore com TODOS os campos do formulário
+            ficha_data = {
+                'produto_id': str(produto_id),  # Garantir que seja string
+                'produto_nome': getattr(produto.catalogo, 'nome', '') if hasattr(produto, 'catalogo') else '',
+                'peso_produto': float(form.cleaned_data.get('peso_produto', 0)),
+                'data_fabricacao': form.cleaned_data.get('data_fabricacao').isoformat() if form.cleaned_data.get('data_fabricacao') else None,
+                'data_validade': None,  # Não vem do formulário de ficha, é do produto
+                'categoria': form.cleaned_data.get('categoria', ''),
+                'textura': form.cleaned_data.get('textura', ''),
+                'validade': int(form.cleaned_data.get('validade', 0)) if form.cleaned_data.get('validade') else None,
+                'armazenamento': form.cleaned_data.get('armazenamento', ''),
+                'calorias': int(form.cleaned_data.get('calorias', 0)) if form.cleaned_data.get('calorias') else None,
+                'tempo_preparo': int(form.cleaned_data.get('tempo_preparo', 0)) if form.cleaned_data.get('tempo_preparo') else None,
+                'perda_aceitavel': form.cleaned_data.get('perda_aceitavel', ''),
+                'rendimento': form.cleaned_data.get('rendimento', ''),
+                'observacoes': form.cleaned_data.get('observacoes', ''),
+                'assinado_por': colaborador_logado.nome if colaborador_logado else request.user.username,
+                'colaborador_id': colaborador_logado.id if colaborador_logado else None,
+                'colaborador_nome': colaborador_logado.nome if colaborador_logado else None,
+                'data_assinatura': datetime.now(),
+                'insumos': []
+            }
+            
+            # Processar insumos usados
+            saida_ids = request.POST.getlist("insumo_id[]")
             quantidades = request.POST.getlist("quantidade_usada[]")
             unidades = request.POST.getlist("unidade[]")
 
-            for i, insumo_id in enumerate(insumos_ids):
-                if insumo_id and quantidades[i]:
-                    insumo_saida = get_object_or_404(SaidaInsumo, id=insumo_id)
-                    quantidade_usada = float(quantidades[i])
-                    unidade = unidades[i]
+            insumos_registrados = 0
+            for i, saida_id in enumerate(saida_ids):
+                quantidade_str = quantidades[i] if i < len(quantidades) else ""
+                if saida_id and quantidade_str and float(quantidade_str) > 0:
+                    try:
+                        # Busca a saída no Firestore
+                        saida_data = saidas_repo.get(str(saida_id))
+                        if not saida_data:
+                            print(f"[DEBUG] Saída {saida_id} não encontrada")
+                            continue
+                        
+                        quantidade_usada = float(quantidades[i])
+                        unidade = unidades[i]
 
-                    # Cria registro na ficha
-                    FichaInsumo.objects.create(
-                        ficha=ficha,
-                        insumo=insumo_saida.insumo,
-                        quantidade_usada=quantidade_usada,
-                        unidade=unidade
-                    )
+                        # Adiciona insumo à lista da ficha
+                        ficha_data['insumos'].append({
+                            'insumo_id': saida_data.get('insumo_id'),
+                            'insumo_nome': saida_data.get('insumo_nome'),
+                            'quantidade_usada': quantidade_usada,
+                            'unidade': unidade,
+                            'data_registro': datetime.now()
+                        })
 
-                    # Calcula total disponível
-                    total_disponivel = insumo_saida.quantidade_principal + \
-                        insumo_saida.quantidade_complementar
-                    restante = total_disponivel - quantidade_usada
+                        # Atualiza estoque da saída no Firestore
+                        quantidade_principal = float(saida_data.get('quantidade_principal', 0))
+                        quantidade_complementar = float(saida_data.get('quantidade_complementar', 0))
+                        total_disponivel = quantidade_principal + quantidade_complementar
+                        restante = total_disponivel - quantidade_usada
 
-                    # Ajusta principal e complementar proporcionalmente ou zera
-                    if restante >= 0:
-                        if quantidade_usada <= insumo_saida.quantidade_principal:
-                            insumo_saida.quantidade_principal -= quantidade_usada
+                        if restante >= 0:
+                            if quantidade_usada <= quantidade_principal:
+                                nova_principal = quantidade_principal - quantidade_usada
+                                nova_complementar = quantidade_complementar
+                            else:
+                                nova_principal = 0
+                                nova_complementar = max(restante, 0)
                         else:
-                            insumo_saida.quantidade_complementar = max(
-                                restante, 0)
-                            insumo_saida.quantidade_principal = 0
-                    else:
-                        insumo_saida.quantidade_principal = 0
-                        insumo_saida.quantidade_complementar = 0
+                            nova_principal = 0
+                            nova_complementar = 0
 
-                    insumo_saida.save()
+                        # Atualiza a saída no Firestore
+                        saidas_repo.update(str(saida_id), {
+                            'quantidade_principal': nova_principal,
+                            'quantidade_complementar': nova_complementar
+                        })
+                        
+                        insumos_registrados += 1
+                        
+                    except Exception as e:
+                        print(f"[DEBUG] Erro ao processar saída {saida_id}: {e}")
+                        continue
 
-            messages.success(request, "Ficha criada e assinada com sucesso!")
-            return redirect("visualizar_ficha", ficha_id=ficha.id)
+            # Salva a ficha no Firestore
+            try:
+                ficha_criada = fichas_repo.create_ficha(ficha_data)
+                ficha_id = ficha_criada.get('id')
+                print(f"[DEBUG] Ficha criada no Firestore com ID: {ficha_id}")
+                
+                if insumos_registrados == 0:
+                    messages.warning(request, "Ficha criada, mas nenhum insumo foi registrado.")
+                else:
+                    messages.success(request, f"Ficha criada e assinada com sucesso! {insumos_registrados} insumo(s) registrado(s).")
+                
+                print(f"[DEBUG] Redirecionando para visualizar_ficha com ficha_id={ficha_id}")
+                return redirect("visualizar_ficha", ficha_id=ficha_id)
+                
+            except Exception as e:
+                print(f"[DEBUG] Erro ao salvar ficha no Firestore: {e}")
+                messages.error(request, f"Erro ao criar ficha: {str(e)}")
+                return redirect(request.path)
+        else:
+            print(f"[DEBUG] Formulário inválido: {form.errors}")
+            messages.error(request, f"Erro ao validar o formulário: {form.errors}")
 
     context = {
         "form": form,
@@ -964,10 +1417,34 @@ def criar_ficha(request):
 
 
 @login_required
+@check_group(["Administrador", "Confeitaria"])
 def visualizar_ficha(request, ficha_id):
-    ficha = get_object_or_404(FichaProducao, id=ficha_id)
-    ficha_insumos = ficha.ficha_insumos.all()
-    return render(request, "core/ficha_detalhada.html", {"ficha": ficha, "ficha_insumos": ficha_insumos})
+    """
+    Visualiza uma ficha de produção do Firestore.
+    """
+    from confeitaria.repos_fichas import FichasRepo
+    
+    fichas_repo = FichasRepo()
+    # Converte ficha_id para string (Firestore usa strings como IDs)
+    ficha_dict = fichas_repo.get(str(ficha_id))
+    
+    if not ficha_dict:
+        from django.http import Http404
+        raise Http404("Ficha não encontrada no Firestore.")
+    
+    # Converte para objeto acessível
+    ficha = SimpleNamespace(**ficha_dict)
+    
+    # Converte insumos para lista de objetos
+    ficha_insumos = []
+    for insumo_data in ficha_dict.get('insumos', []):
+        insumo_obj = SimpleNamespace(**insumo_data)
+        ficha_insumos.append(insumo_obj)
+    
+    return render(request, "core/ficha_detalhada.html", {
+        "ficha": ficha, 
+        "ficha_insumos": ficha_insumos
+    })
 
 
 @login_required

@@ -11,19 +11,8 @@ from .models import (
 
 
 # ------------------ CRIAR USUÁRIO ------------------
-
-
-class CriarUsuarioForm(forms.ModelForm):
-    colaborador = forms.ModelChoiceField(
-        queryset=Colaborador.objects.all(),
-        widget=forms.Select(attrs={'class': 'form-select'}),
-        required=True,
-        label="Colaborador"
-    )
-
-    class Meta:
-        model = User
-        fields = ['username', 'password', 'colaborador']
+# Nota: Formulário não usado - usuários são criados via template personalizado 
+# que usa Firestore para buscar colaboradores
 
 
 # ------------------ FICHA DE PRODUÇÃO ------------------
@@ -141,6 +130,40 @@ class ProdutoProntoForm(forms.ModelForm):
             'catalogo': 'Produto',
             'peso_produto': 'Peso do Produto (g)',
         }
+    
+    def __init__(self, *args, use_firestore=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Se usar Firestore, carregar produtos do catálogo do Firestore
+        if use_firestore:
+            try:
+                from confeitaria.repos_catalogo import CatalogoRepo
+                from django import forms as django_forms
+                
+                # Buscar produtos do catálogo no Firestore
+                catalogo_repo = CatalogoRepo()
+                produtos_fs = catalogo_repo.list(limit=1000)
+                
+                # Criar choices para o campo catálogo
+                choices = [('', '---------')]
+                for produto_data in produtos_fs:
+                    label = produto_data.get('nome', 'N/A')
+                    categoria = produto_data.get('categoria')
+                    if categoria:
+                        label = f"{label} ({categoria})"
+                    choices.append((produto_data['id'], label))
+                
+                # Substituir o campo catálogo por um ChoiceField
+                self.fields['catalogo'] = django_forms.ChoiceField(
+                    choices=choices,
+                    widget=django_forms.Select(attrs={'class': 'form-select'}),
+                    label='Produto',
+                    required=True
+                )
+                
+            except Exception as e:
+                print(f"Erro ao carregar produtos do Firestore: {e}")
+                # Se falhar, mantém o comportamento original
 
 
 # ------------------ SAÍDA DE INSUMO ------------------
@@ -161,8 +184,95 @@ class SaidaInsumoForm(forms.ModelForm):
             'colaborador_retira': forms.Select(attrs={'class': 'form-select'}),
             'unidade': forms.Select(attrs={'class': 'form-select'}),
         }
+    
+    def __init__(self, *args, use_firestore=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Se usar Firestore, carregar insumos e colaboradores do Firestore
+        if use_firestore:
+            from confeitaria.repos_insumos import InsumosRepo
+            from django import forms as django_forms
+            
+            # Buscar insumos do Firestore
+            repo = InsumosRepo()
+            insumos_fs = repo.list(limit=1000)
+            
+            # Criar choices para o campo insumo
+            choices = [('', '---------')]
+            for insumo_data in insumos_fs:
+                # Formatação da quantidade para exibição
+                qtd = float(insumo_data['quantidade_total'])
+                unidade = insumo_data['unidade_base']
+                
+                if unidade == 'g' and qtd >= 1000:
+                    display_qtd = f"({qtd/1000:.0f} kg {int(qtd%1000)} g)"
+                elif unidade == 'ml' and qtd >= 1000:
+                    display_qtd = f"({qtd/1000:.0f} L {int(qtd%1000)} ml)"
+                else:
+                    display_qtd = f"({int(qtd)} {unidade})"
+                
+                label = f"{insumo_data['nome']} {display_qtd}"
+                choices.append((insumo_data['id'], label))
+            
+            # Substituir o campo insumo por um ChoiceField
+            self.fields['insumo'] = django_forms.ChoiceField(
+                choices=choices,
+                widget=django_forms.Select(attrs={'class': 'form-select'}),
+                label='Insumo'
+            )
+            
+            # Carregar colaboradores do Firestore
+            try:
+                from confeitaria.repos_colaboradores import ColaboradoresRepo
+                colab_repo = ColaboradoresRepo()
+                colaboradores_fs = colab_repo.list(limit=1000)
+                
+                # Criar choices para colaborador_entregando
+                colab_choices = [('', '---------')]
+                for colab_data in colaboradores_fs:
+                    label = f"{colab_data.get('nome', 'N/A')} ({colab_data.get('funcao', 'N/A')})"
+                    colab_choices.append((colab_data['id'], label))
+                
+                # Substituir os campos de colaborador por ChoiceFields
+                self.fields['colaborador_entregando'] = django_forms.ChoiceField(
+                    choices=colab_choices,
+                    widget=django_forms.Select(attrs={'class': 'form-select'}),
+                    label='Colaborador Entregando',
+                    required=True
+                )
+                
+                self.fields['colaborador_retira'] = django_forms.ChoiceField(
+                    choices=colab_choices,
+                    widget=django_forms.Select(attrs={'class': 'form-select'}),
+                    label='Colaborador que Retira',
+                    required=True
+                )
+                
+                # Também substituir o campo unidade por choices fixas
+                unidade_choices = [
+                    ('', '---------'),
+                    ('g', 'gramas'),
+                    ('ml', 'mililitros'),
+                    ('un', 'unidades'),
+                ]
+                self.fields['unidade'] = django_forms.ChoiceField(
+                    choices=unidade_choices,
+                    widget=django_forms.Select(attrs={'class': 'form-select'}),
+                    label='Unidade',
+                    required=True
+                )
+                
+            except Exception:
+                # Se falhar ao carregar colaboradores do Firestore, mantém comportamento original
+                pass
 
     def save(self, commit=True):
+        # IMPORTANTE: Só salva no banco se NÃO estivermos usando Firestore
+        # No modo Firestore, este método não deveria ser chamado
+        if hasattr(self, '_use_firestore') and self._use_firestore:
+            # Não salva quando estamos usando Firestore
+            return None
+        
         # Salva diretamente em quantidade_principal e zera complementar
         self.instance.quantidade_principal = self.cleaned_data['quantidade']
         self.instance.quantidade_complementar = 0

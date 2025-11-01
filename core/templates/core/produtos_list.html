@@ -46,14 +46,14 @@
                     <td>
                         {% if p.ficha_existe and p.ficha %}
                             <a href="{% url 'visualizar_ficha' p.ficha.id %}" class="text-decoration-none text-dark fw-bold">
-                                {{ p.catalogo.nome }}
+                                {{ p.catalogo_nome }}
                             </a>
                         {% else %}
-                            {{ p.catalogo.nome }}
+                            {{ p.catalogo_nome }}
                         {% endif %}
                     </td>
 
-                    <td>{{ p.quantidade }}</td>
+                    <td>{{ p.quantidade_formatada }}</td>
                     <td>{{ p.data_fabricacao|date:"d/m/Y" }}</td>
                     <td>{{ p.data_validade|date:"d/m/Y" }}</td>
 

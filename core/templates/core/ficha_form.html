@@ -16,6 +16,15 @@ Criar Ficha Técnica - {% if produto %}{{ produto.catalogo.nome }}{% endif %}
             </a>
         </div>
         <div class="card-body p-4">
+            {% if messages %}
+                <div class="mb-3">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }}" role="alert">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
             <form method="POST">
                 {% csrf_token %}
                 
@@ -66,11 +75,11 @@ Criar Ficha Técnica - {% if produto %}{{ produto.catalogo.nome }}{% endif %}
                                         <td>{{ insumo_saida.quantidade_total|formatar_quantidade:insumo_saida.insumo.unidade_base }}</td>
                                         <td>{{ insumo_saida.insumo.unidade_base }}</td>
                                         <td>
-                                            <input type="hidden" name="insumo_id[]" value="{{ insumo_saida.id }}">
-                                            <input type="number" name="quantidade_usada[]" step="0.01" min="0"
-                                                   max="{{ insumo_saida.quantidade_total }}"
-                                                   class="form-control form-control-sm" required>
-                                            <input type="hidden" name="unidade[]" value="{{ insumo_saida.insumo.unidade_base }}">
+                          <input type="hidden" name="insumo_id[]" value="{{ insumo_saida.id }}">
+                          <input type="number" name="quantidade_usada[]" step="0.01" min="0"
+                              max="{{ insumo_saida.quantidade_total }}"
+                              class="form-control form-control-sm" required>
+                          <input type="hidden" name="unidade[]" value="{{ insumo_saida.insumo.unidade_base }}">
                                         </td>
                                     </tr>
                                 {% endfor %}

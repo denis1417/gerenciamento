@@ -114,56 +114,78 @@ class InsumoForm(forms.ModelForm):
 
 # ------------------ PRODUTO PRONTO ------------------
 
-class ProdutoProntoForm(forms.ModelForm):
-    class Meta:
-        model = ProdutoPronto
-        fields = ['catalogo', 'quantidade', 'data_fabricacao',
-                  'data_validade', 'peso_produto']
-        widgets = {
-            'catalogo': forms.Select(attrs={'class': 'form-select'}),
-            'quantidade': forms.NumberInput(attrs={'class': 'form-control'}),
-            'data_fabricacao': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'data_validade': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'peso_produto': forms.NumberInput(attrs={'step': '0.01', 'class': 'form-control'}),
-        }
-        labels = {
-            'catalogo': 'Produto',
-            'peso_produto': 'Peso do Produto (g)',
-        }
+class ProdutoProntoForm(forms.Form):
+    """Formulário para produto pronto - compatível com Firestore"""
     
-    def __init__(self, *args, use_firestore=False, **kwargs):
+    catalogo = forms.ChoiceField(
+        label='Produto',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        required=True
+    )
+    quantidade = forms.IntegerField(
+        label='Quantidade',
+        widget=forms.NumberInput(attrs={'class': 'form-control'}),
+        required=True
+    )
+    data_fabricacao = forms.DateField(
+        label='Data de Fabricação',
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+        required=True
+    )
+    data_validade = forms.DateField(
+        label='Data de Validade',
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+        required=True
+    )
+    peso_produto = forms.DecimalField(
+        label='Peso do Produto (g)',
+        widget=forms.NumberInput(attrs={'step': '0.01', 'class': 'form-control'}),
+        required=True,
+        decimal_places=2
+    )
+    
+    def __init__(self, *args, use_firestore=True, **kwargs):
+        # Remover 'instance' se vier nos kwargs (não é compatível com Form)
+        if 'instance' in kwargs:
+            instance = kwargs.pop('instance')
+            # Se tem instance, preencher com initial
+            if not kwargs.get('initial'):
+                kwargs['initial'] = {}
+            if hasattr(instance, 'catalogo_id'):
+                kwargs['initial']['catalogo'] = instance.catalogo_id
+            if hasattr(instance, 'quantidade'):
+                kwargs['initial']['quantidade'] = instance.quantidade
+            if hasattr(instance, 'data_fabricacao'):
+                kwargs['initial']['data_fabricacao'] = instance.data_fabricacao
+            if hasattr(instance, 'data_validade'):
+                kwargs['initial']['data_validade'] = instance.data_validade
+            if hasattr(instance, 'peso_produto'):
+                kwargs['initial']['peso_produto'] = instance.peso_produto
+        
         super().__init__(*args, **kwargs)
         
-        # Se usar Firestore, carregar produtos do catálogo do Firestore
-        if use_firestore:
-            try:
-                from confeitaria.repos_catalogo import CatalogoRepo
-                from django import forms as django_forms
-                
-                # Buscar produtos do catálogo no Firestore
-                catalogo_repo = CatalogoRepo()
-                produtos_fs = catalogo_repo.list(limit=1000)
-                
-                # Criar choices para o campo catálogo
-                choices = [('', '---------')]
-                for produto_data in produtos_fs:
-                    label = produto_data.get('nome', 'N/A')
-                    categoria = produto_data.get('categoria')
-                    if categoria:
-                        label = f"{label} ({categoria})"
-                    choices.append((produto_data['id'], label))
-                
-                # Substituir o campo catálogo por um ChoiceField
-                self.fields['catalogo'] = django_forms.ChoiceField(
-                    choices=choices,
-                    widget=django_forms.Select(attrs={'class': 'form-select'}),
-                    label='Produto',
-                    required=True
-                )
-                
-            except Exception as e:
-                print(f"Erro ao carregar produtos do Firestore: {e}")
-                # Se falhar, mantém o comportamento original
+        # Carregar produtos do catálogo do Firestore
+        try:
+            from confeitaria.repos_catalogo import CatalogoRepo
+            
+            catalogo_repo = CatalogoRepo()
+            produtos_fs = catalogo_repo.list(limit=1000)
+            
+            # Criar choices para o campo catálogo
+            choices = [('', '---------')]
+            for produto_data in produtos_fs:
+                label = produto_data.get('nome', 'N/A')
+                descricao = produto_data.get('descricao')
+                if descricao:
+                    label = f"{label} ({descricao})"
+                choices.append((produto_data['id'], label))
+            
+            self.fields['catalogo'].choices = choices
+            
+        except Exception as e:
+            print(f"Erro ao carregar produtos do Firestore: {e}")
+            import traceback
+            traceback.print_exc()
 
 
 # ------------------ SAÍDA DE INSUMO ------------------

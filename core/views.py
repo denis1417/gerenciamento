@@ -103,12 +103,19 @@ def login_view(request):
         else:
             messages.error(request, "Usuário ou senha incorretos.")
             return redirect("login")
+    
+    # Limpar mensagens antigas apenas no GET (não no POST)
+    if request.method == "GET":
+        storage = messages.get_messages(request)
+        list(storage)  # Esvazia as mensagens
+        
     users_exist = User.objects.exists()
     return render(request, "login.html", {"users_exist": users_exist})
 
 
 def logout_view(request):
     logout(request)
+    # Redireciona para login sem mensagens
     return redirect('login')
 
 
@@ -564,6 +571,10 @@ def saida_insumo_list(request):
         
         # Unidade
         saida_obj.unidade = s.get('unidade', 'un')
+        
+        # Formata a exibição da quantidade (ex: "2000 g" ou "2.5 kg")
+        quantidade_formatada = f"{saida_obj.quantidade_total:.0f}" if saida_obj.quantidade_total == int(saida_obj.quantidade_total) else f"{saida_obj.quantidade_total}"
+        saida_obj.exibir_quantidade = f"{quantidade_formatada} {saida_obj.unidade}"
         
         saidas.append(saida_obj)
     
@@ -1289,11 +1300,15 @@ def criar_ficha(request):
                             nova_principal = 0
                             nova_complementar = 0
 
-                        # Atualiza a saída no Firestore
-                        saidas_repo.update(str(saida_id), {
+                        # Atualiza a saída no Firestore - usa set() para manter todos os campos
+                        updated_saida = {
+                            **saida_data,  # Mantém todos os campos existentes
                             'quantidade_principal': nova_principal,
                             'quantidade_complementar': nova_complementar
-                        })
+                        }
+                        saidas_repo.set(str(saida_id), updated_saida)
+                        
+                        print(f"[DEBUG] Saída {saida_id} atualizada: {total_disponivel} -> {nova_principal + nova_complementar}")
                         
                         insumos_registrados += 1
                         

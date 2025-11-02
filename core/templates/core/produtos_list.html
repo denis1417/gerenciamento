@@ -78,7 +78,13 @@
                     </td>
 
                     <td>
-                        <a href="{% url 'produtos_edit' p.id %}" class="btn btn-sm btn-warning me-1 btn-hover-3d">Editar</a>
+                        {% if p.ficha_existe %}
+                            <button class="btn btn-sm btn-secondary me-1 disabled" disabled title="Não é possível editar após criar a ficha">
+                                🔒 Editar
+                            </button>
+                        {% else %}
+                            <a href="{% url 'produtos_edit' p.id %}" class="btn btn-sm btn-warning me-1 btn-hover-3d">Editar</a>
+                        {% endif %}
                         <a href="{% url 'produtos_delete' p.id %}" class="btn btn-sm btn-danger btn-hover-3d">Deletar</a>
                     </td>
                 </tr>
@@ -110,6 +116,17 @@
 .btn-hover-3d:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* Botão desabilitado após criar ficha */
+.btn.disabled, .btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    box-shadow: none;
+}
+.btn.disabled:hover, .btn:disabled:hover {
+    transform: none;
+    box-shadow: none;
 }
 
 .produto-vencido { background-color: #b71c1c !important; color: #fff !important; font-weight: bold; }

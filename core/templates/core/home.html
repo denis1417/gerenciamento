@@ -10,16 +10,12 @@
         <h2 class="text-primary fw-bold">Bem-vindo à Confeitaria</h2>
     </div>
 
-<<<<<<< HEAD
-
-    <!-- ✅ COLABORADOR / USUÁRIO LOGADO -->
+    <!-- BLOCO USUÁRIO LOGADO -->
     <div class="mb-4 p-3 border rounded bg-light shadow-sm">
-
         <h5 class="mb-3">Usuário logado:</h5>
 
         <div class="d-flex align-items-center gap-3">
 
-            <!-- FOTO -->
             {% if colaborador and colaborador.foto %}
                 <img src="{{ colaborador.foto.url }}"
                      width="80"
@@ -39,190 +35,101 @@
                 </div>
             {% endif %}
 
-            <!-- NOME -->
             <div>
-
                 <strong style="font-size:18px;">
-
                     {% if colaborador %}
                         Nome: {{ colaborador.nome }}
-
                     {% elif user.is_superuser %}
                         Nome: Administrador
-
                     {% else %}
                         Usuário: {{ user.username }}
-
                     {% endif %}
-
                 </strong>
-
                 <br>
-
                 <span class="text-muted">
                     Login: {{ request.user.username }}
                 </span>
-
             </div>
-
         </div>
-
     </div>
-    <!-- ✅ FIM BLOCO USUÁRIO -->
 
-
-=======
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
     <div class="row g-4 justify-content-center">
 
-        <!-- Card Colaboradores -->
         {% if is_rh %}
         <div class="col-md-3 col-sm-6">
             <div class="card text-center shadow-sm hover-card">
                 <div class="card-body">
                     <i class="bi bi-people-fill display-4 text-primary"></i>
                     <h5 class="card-title mt-3">Colaboradores</h5>
-<<<<<<< HEAD
-                    <a href="{% url 'colaboradores_list' %}" class="btn btn-primary btn-sm mt-3">
-                        Abrir
-                    </a>
-=======
                     <a href="{% url 'colaboradores_list' %}" class="btn btn-primary btn-sm mt-3">Abrir</a>
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
                 </div>
             </div>
         </div>
         {% endif %}
 
-<<<<<<< HEAD
-
-=======
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
-        <!-- Card Insumos -->
         {% if is_insumo %}
         <div class="col-md-3 col-sm-6">
             <div class="card text-center shadow-sm hover-card">
                 <div class="card-body">
                     <i class="bi bi-basket-fill display-4 text-success"></i>
                     <h5 class="card-title mt-3">Insumos</h5>
-<<<<<<< HEAD
-                    <a href="{% url 'insumos_list' %}" class="btn btn-success btn-sm mt-3">
-                        Abrir
-                    </a>
-=======
                     <a href="{% url 'insumos_list' %}" class="btn btn-success btn-sm mt-3">Abrir</a>
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
                 </div>
             </div>
         </div>
 
-        <!-- Card Saída de Insumos -->
         <div class="col-md-3 col-sm-6">
             <div class="card text-center shadow-sm hover-card">
                 <div class="card-body">
                     <i class="bi bi-box-arrow-up-right display-4 text-danger"></i>
                     <h5 class="card-title mt-3">Saída de Insumos</h5>
-<<<<<<< HEAD
-                    <a href="{% url 'saida_insumo_list' %}" class="btn btn-danger btn-sm mt-3">
-                        Abrir
-                    </a>
-=======
                     <a href="{% url 'saida_insumo_list' %}" class="btn btn-danger btn-sm mt-3">Abrir</a>
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
                 </div>
             </div>
         </div>
         {% endif %}
 
-<<<<<<< HEAD
-
-=======
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
-        <!-- Card Produtos Prontos -->
         {% if is_confeitaria %}
         <div class="col-md-3 col-sm-6">
             <div class="card text-center shadow-sm hover-card">
                 <div class="card-body">
                     <i class="bi bi-box-seam display-4 text-warning"></i>
                     <h5 class="card-title mt-3">Produtos Prontos</h5>
-<<<<<<< HEAD
-                    <a href="{% url 'produtos_list' %}" class="btn btn-warning btn-sm mt-3">
-                        Abrir
-                    </a>
-=======
                     <a href="{% url 'produtos_list' %}" class="btn btn-warning btn-sm mt-3">Abrir</a>
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
                 </div>
             </div>
         </div>
         {% endif %}
 
-<<<<<<< HEAD
-
-        <!-- Card Usuários -->
-=======
-        <!-- Card Usuários (apenas admin) -->
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
         {% if is_admin %}
         <div class="col-md-3 col-sm-6">
             <div class="card text-center shadow-sm hover-card">
                 <div class="card-body">
                     <i class="bi bi-person-fill display-4 text-secondary"></i>
                     <h5 class="card-title mt-3">Usuários</h5>
-<<<<<<< HEAD
-                    <a href="{% url 'usuarios_list' %}" class="btn btn-secondary btn-sm mt-3">
-                        Abrir
-                    </a>
-=======
                     <a href="{% url 'usuarios_list' %}" class="btn btn-secondary btn-sm mt-3">Abrir</a>
-
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
                 </div>
             </div>
         </div>
         {% endif %}
 
     </div>
-<<<<<<< HEAD
-
-</div>
-
-
-<style>
-
-=======
 </div>
 
 <style>
-/* Estilo dos cards com hover */
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
 .hover-card {
     transition: transform 0.2s, box-shadow 0.2s;
     border-radius: 10px;
 }
-<<<<<<< HEAD
 
-=======
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
 .hover-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 10px 20px rgba(0,0,0,0.15);
 }
-<<<<<<< HEAD
 
 .card i {
     margin-bottom: 0.5rem;
 }
-
 </style>
 
 {% endblock %}
-=======
-.card i {
-    margin-bottom: 0.5rem;
-}
-</style>
-{% endblock %}
-
-
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f

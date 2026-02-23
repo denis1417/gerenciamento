@@ -2,11 +2,10 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+
+    # Home e Dashboard
     path('', views.home, name='home'),
-<<<<<<< HEAD
     path('dashboard/', views.dashboard, name='dashboard'),
-=======
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
 
     # Colaboradores
     path('colaboradores/', views.colaboradores_list, name='colaboradores_list'),
@@ -31,12 +30,13 @@ urlpatterns = [
     path('produtos/<int:id>/editar/', views.produtos_edit, name='produtos_edit'),
     path('produtos/<int:id>/deletar/',
          views.produtos_delete, name='produtos_delete'),
+
+    # Catálogo
     path('catalogo/', views.catalogo_list, name='catalogo_list'),
     path('catalogo/novo/', views.catalogo_create, name='catalogo_create'),
     path('catalogo/<int:pk>/editar/', views.catalogo_edit, name='catalogo_edit'),
     path('catalogo/<int:pk>/deletar/',
          views.catalogo_delete, name='catalogo_delete'),
-
 
     # Fichas de Produção
     path('produtos/ficha/criar/', views.criar_ficha, name='criar_ficha'),
@@ -62,15 +62,11 @@ urlpatterns = [
     # Logout
     path('logout/', views.logout_view, name='logout'),
 
-    # Relatório de Insumos (somente Administrador)
+    # Relatórios e Checklist
     path('relatorio-insumos/', views.relatorio_insumos, name='relatorio_insumos'),
     path('checklist/<str:data_vistoria>/',
          views.visualizar_checklist, name='visualizar_checklist'),
     path('checklist/<str:data_vistoria>/excluir/',
          views.excluir_checklist, name='excluir_checklist'),
-<<<<<<< HEAD
 
-
-=======
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
 ]

@@ -1,9 +1,6 @@
 from collections import defaultdict
 from datetime import date, timedelta
-<<<<<<< HEAD
 from django.db.models import Count
-=======
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -78,49 +75,25 @@ def logout_view(request):
 
 @login_required
 def home(request):
-<<<<<<< HEAD
 
     colaborador = None
-
     if hasattr(request.user, 'colaborador'):
         colaborador = request.user.colaborador
 
     context = {
         "colaborador": colaborador,
-
-        "is_admin": request.user.is_superuser or request.user.groups.filter(name="Administrador").exists(),
-
-        "is_rh": request.user.groups.filter(name="RH").exists()
-        or request.user.is_superuser,
-
-        "is_insumo": request.user.groups.filter(name="Insumos").exists()
-        or request.user.is_superuser,
-
-        "is_confeitaria": request.user.groups.filter(name="Confeitaria").exists()
-        or request.user.is_superuser,
-    }
-
-    return render(request, "core/home.html", context)
-
-=======
-    context = {
         "is_admin": request.user.is_superuser or request.user.groups.filter(name="Administrador").exists(),
         "is_rh": request.user.groups.filter(name="RH").exists() or request.user.is_superuser,
         "is_insumo": request.user.groups.filter(name="Insumos").exists() or request.user.is_superuser,
         "is_confeitaria": request.user.groups.filter(name="Confeitaria").exists() or request.user.is_superuser,
     }
+
     return render(request, "core/home.html", context)
-
-
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
 # =========================================================
 # COLABORADORES
 # =========================================================
 
-<<<<<<< HEAD
 
-=======
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
 @login_required
 @check_group("RH")
 def colaboradores_list(request):
@@ -722,18 +695,15 @@ def catalogo_delete(request, id):
         messages.success(request, "Produto do catálogo deletado!")
         return redirect("catalogo_list")
     return render(request, "core/delete.html", {"obj": item})
-<<<<<<< HEAD
 
 
 @login_required
 def dashboard(request):
 
     colaborador = None
-
     if hasattr(request.user, 'colaborador'):
         colaborador = request.user.colaborador
 
-    # usando aggregate conforme exigido no PDF
     total_produtos = Produto.objects.aggregate(
         total=Count('id')
     )['total'] or 0
@@ -746,7 +716,6 @@ def dashboard(request):
         total=Count('id')
     )['total'] or 0
 
-    # estoque baixo (exemplo: menor que 10)
     estoque_baixo = Insumo.objects.filter(
         quantidade_total__lt=10
     ).order_by('quantidade_total')
@@ -760,5 +729,3 @@ def dashboard(request):
     }
 
     return render(request, 'core/dashboard.html', context)
-=======
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f

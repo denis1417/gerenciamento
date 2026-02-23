@@ -1,4 +1,5 @@
 from django.test import TestCase
+<<<<<<< HEAD
 from core.models import Colaborador, Produto, Insumo
 from datetime import date
 
@@ -67,3 +68,7 @@ class InsumoEstoqueTestCase(TestCase):
     def test_estoque_baixo(self):
         estoque_baixo = Insumo.objects.filter(quantidade_total__lt=10)
         self.assertTrue(self.insumo in estoque_baixo)
+=======
+
+# Create your tests here.
+>>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f

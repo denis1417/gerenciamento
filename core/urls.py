@@ -3,7 +3,10 @@ from . import views
 
 urlpatterns = [
     path('', views.home, name='home'),
+<<<<<<< HEAD
     path('dashboard/', views.dashboard, name='dashboard'),
+=======
+>>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
 
     # Colaboradores
     path('colaboradores/', views.colaboradores_list, name='colaboradores_list'),
@@ -65,6 +68,9 @@ urlpatterns = [
          views.visualizar_checklist, name='visualizar_checklist'),
     path('checklist/<str:data_vistoria>/excluir/',
          views.excluir_checklist, name='excluir_checklist'),
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
 ]

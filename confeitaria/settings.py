@@ -11,7 +11,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Segurança
 SECRET_KEY = 'django-insecure-_kbzn*1xrh$merov!7f0m9gi5(cti_oe@t$2n(ek-i(p!w%fn^'
+<<<<<<< HEAD
 DEBUG = True
+=======
+DEBUG = False
+>>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
 ALLOWED_HOSTS = []
 
 
@@ -23,8 +27,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+<<<<<<< HEAD
     'core',
     'rest_framework',
+=======
+    'core',  # <-- seu app da confeitaria
+>>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
 ]
 
 MIDDLEWARE = [
@@ -79,7 +87,12 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 # Internationalization
+<<<<<<< HEAD
 LANGUAGE_CODE = 'pt-br'   # <-- ajustei para o Brasil
+=======
+LANGUAGE_CODE = 'pt-br'   # <-- mudei para português
+TIME_ZONE = 'America/Sao_Paulo'  # <-- ajustei para o Brasil
+>>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
 USE_I18N = True
 USE_TZ = True
 

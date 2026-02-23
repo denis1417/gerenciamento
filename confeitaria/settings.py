@@ -3,23 +3,28 @@ Django settings for confeitaria project.
 """
 
 from pathlib import Path
-import os  # <-- IMPORTANTE para manipular caminhos
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Segurança
+# ========================
+# SEGURANÇA
+# ========================
+
 SECRET_KEY = 'django-insecure-_kbzn*1xrh$merov!7f0m9gi5(cti_oe@t$2n(ek-i(p!w%fn^'
-<<<<<<< HEAD
-DEBUG = True
-=======
-DEBUG = False
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
-ALLOWED_HOSTS = []
+
+# DEBUG automático (local True / produção False)
+DEBUG = os.environ.get("DEBUG", "True") == "True"
+
+ALLOWED_HOSTS = ['*']
 
 
-# Application definition
+# ========================
+# APLICAÇÕES
+# ========================
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -27,13 +32,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-<<<<<<< HEAD
-    'core',
+
     'rest_framework',
-=======
-    'core',  # <-- seu app da confeitaria
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
+    'core',
 ]
+
+
+# ========================
+# MIDDLEWARE
+# ========================
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -45,7 +52,13 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+
 ROOT_URLCONF = 'confeitaria.urls'
+
+
+# ========================
+# TEMPLATES
+# ========================
 
 TEMPLATES = [
     {
@@ -58,7 +71,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "core.context_processors.group_permissions",  # <-- adicione esta linha
+                "core.context_processors.group_permissions",
             ],
         },
     },
@@ -68,7 +81,10 @@ TEMPLATES = [
 WSGI_APPLICATION = 'confeitaria.wsgi.application'
 
 
-# Database
+# ========================
+# DATABASE
+# ========================
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -77,7 +93,10 @@ DATABASES = {
 }
 
 
-# Password validation
+# ========================
+# PASSWORD VALIDATION
+# ========================
+
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -86,27 +105,43 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
-<<<<<<< HEAD
-LANGUAGE_CODE = 'pt-br'   # <-- ajustei para o Brasil
-=======
-LANGUAGE_CODE = 'pt-br'   # <-- mudei para português
-TIME_ZONE = 'America/Sao_Paulo'  # <-- ajustei para o Brasil
->>>>>>> c693f1a340c5583664699999a38e44306a3d4a6f
+# ========================
+# INTERNACIONALIZAÇÃO
+# ========================
+
+LANGUAGE_CODE = 'pt-br'
+TIME_ZONE = 'America/Sao_Paulo'
+
 USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
+# ========================
+# STATIC FILES
+# ========================
+
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Configuração para upload de imagens
+
+# ========================
+# MEDIA FILES
+# ========================
+
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = BASE_DIR / 'media'
 
-# Default primary key field type
+
+# ========================
+# DEFAULT PK
+# ========================
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Para onde redireciona se não estiver logado
+
+# ========================
+# LOGIN
+# ========================
+
 LOGIN_URL = '/accounts/login/'
-LOGIN_REDIRECT_URL = '/'               # Para onde vai depois de logar
+LOGIN_REDIRECT_URL = '/'

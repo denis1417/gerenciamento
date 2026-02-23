@@ -1,0 +1,174 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Home - Confeitaria{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <!-- Cabeçalho -->
+    <div class="mb-4">
+        <h2 class="text-primary fw-bold">Bem-vindo à Confeitaria</h2>
+    </div>
+
+
+    <!-- ✅ COLABORADOR / USUÁRIO LOGADO -->
+    <div class="mb-4 p-3 border rounded bg-light shadow-sm">
+
+        <h5 class="mb-3">Usuário logado:</h5>
+
+        <div class="d-flex align-items-center gap-3">
+
+            <!-- FOTO -->
+            {% if colaborador and colaborador.foto %}
+                <img src="{{ colaborador.foto.url }}"
+                     width="80"
+                     height="80"
+                     style="border-radius:50%; object-fit:cover; border:2px solid #0d6efd;">
+            {% else %}
+                <div style="
+                    width:80px;
+                    height:80px;
+                    border-radius:50%;
+                    background:#dee2e6;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    font-size:30px;">
+                    👤
+                </div>
+            {% endif %}
+
+            <!-- NOME -->
+            <div>
+
+                <strong style="font-size:18px;">
+
+                    {% if colaborador %}
+                        Nome: {{ colaborador.nome }}
+
+                    {% elif user.is_superuser %}
+                        Nome: Administrador
+
+                    {% else %}
+                        Usuário: {{ user.username }}
+
+                    {% endif %}
+
+                </strong>
+
+                <br>
+
+                <span class="text-muted">
+                    Login: {{ request.user.username }}
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+    <!-- ✅ FIM BLOCO USUÁRIO -->
+
+
+    <div class="row g-4 justify-content-center">
+
+        <!-- Card Colaboradores -->
+        {% if is_rh %}
+        <div class="col-md-3 col-sm-6">
+            <div class="card text-center shadow-sm hover-card">
+                <div class="card-body">
+                    <i class="bi bi-people-fill display-4 text-primary"></i>
+                    <h5 class="card-title mt-3">Colaboradores</h5>
+                    <a href="{% url 'colaboradores_list' %}" class="btn btn-primary btn-sm mt-3">
+                        Abrir
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+
+        <!-- Card Insumos -->
+        {% if is_insumo %}
+        <div class="col-md-3 col-sm-6">
+            <div class="card text-center shadow-sm hover-card">
+                <div class="card-body">
+                    <i class="bi bi-basket-fill display-4 text-success"></i>
+                    <h5 class="card-title mt-3">Insumos</h5>
+                    <a href="{% url 'insumos_list' %}" class="btn btn-success btn-sm mt-3">
+                        Abrir
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card Saída de Insumos -->
+        <div class="col-md-3 col-sm-6">
+            <div class="card text-center shadow-sm hover-card">
+                <div class="card-body">
+                    <i class="bi bi-box-arrow-up-right display-4 text-danger"></i>
+                    <h5 class="card-title mt-3">Saída de Insumos</h5>
+                    <a href="{% url 'saida_insumo_list' %}" class="btn btn-danger btn-sm mt-3">
+                        Abrir
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+
+        <!-- Card Produtos Prontos -->
+        {% if is_confeitaria %}
+        <div class="col-md-3 col-sm-6">
+            <div class="card text-center shadow-sm hover-card">
+                <div class="card-body">
+                    <i class="bi bi-box-seam display-4 text-warning"></i>
+                    <h5 class="card-title mt-3">Produtos Prontos</h5>
+                    <a href="{% url 'produtos_list' %}" class="btn btn-warning btn-sm mt-3">
+                        Abrir
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+
+        <!-- Card Usuários -->
+        {% if is_admin %}
+        <div class="col-md-3 col-sm-6">
+            <div class="card text-center shadow-sm hover-card">
+                <div class="card-body">
+                    <i class="bi bi-person-fill display-4 text-secondary"></i>
+                    <h5 class="card-title mt-3">Usuários</h5>
+                    <a href="{% url 'usuarios_list' %}" class="btn btn-secondary btn-sm mt-3">
+                        Abrir
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+</div>
+
+
+<style>
+
+.hover-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    border-radius: 10px;
+}
+
+.hover-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+}
+
+.card i {
+    margin-bottom: 0.5rem;
+}
+
+</style>
+
+{% endblock %}

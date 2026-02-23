@@ -1,0 +1,43 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Editar Usuário - Confeitaria{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-sm border rounded">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0">Editar Usuário</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                {% csrf_token %}
+
+                <!-- Nome de usuário -->
+                <div class="mb-3">
+                    <label for="username" class="form-label">Nome de Usuário</label>
+                    <input type="text" name="username" id="username" class="form-control"
+                           value="{{ usuario.username }}" required>
+                </div>
+
+                <!-- Grupo -->
+                <div class="mb-3">
+                    <label for="grupo" class="form-label">Grupo</label>
+                    <select name="grupo" id="grupo" class="form-select" required>
+                        <option value="" {% if not grupo_atual %}selected{% endif %}>Selecione</option>
+                        <option value="Administrador" {% if grupo_atual == "Administrador" %}selected{% endif %}>Administrador</option>
+                        <option value="RH" {% if grupo_atual == "RH" %}selected{% endif %}>RH</option>
+                        <option value="Insumos" {% if grupo_atual == "Insumos" %}selected{% endif %}>Insumos</option>
+                        <option value="Confeitaria" {% if grupo_atual == "Confeitaria" %}selected{% endif %}>Confeitaria</option>
+                    </select>
+                </div>
+
+                <!-- Botões -->
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{% url 'listar_usuarios' %}" class="btn btn-secondary">Cancelar</a>
+                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

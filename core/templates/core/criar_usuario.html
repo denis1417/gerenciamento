@@ -1,0 +1,141 @@
+{% extends "core/base.html" %}
+
+{% block title %}Criar Usuário - Confeitaria{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+
+    <h2 class="mb-4">Criar Novo Usuário</h2>
+
+    <!-- Mensagens do Django -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if request.user.is_superuser %}
+        <!-- Formulário apenas para administradores -->
+        <form method="post" onsubmit="return validarSenhas()">
+            {% csrf_token %}
+
+            <div class="mb-3">
+                <label for="username" class="form-label">Nome de Usuário</label>
+                <input type="text" id="username" name="username" class="form-control" required placeholder="Digite o nome do usuário">
+            </div>
+
+            <div class="mb-3">
+                <label for="senha_nova" class="form-label">Senha do Novo Usuário</label>
+                <input type="password" id="senha_nova" name="senha_nova" class="form-control" required placeholder="Digite a senha do novo usuário" onkeyup="verificarForcaSenha()">
+                <div id="forca-senha" class="form-text"></div>
+            </div>
+
+            <div class="mb-3">
+                <label for="senha_confirmacao" class="form-label">Confirme a Senha do Novo Usuário</label>
+                <input type="password" id="senha_confirmacao" name="senha_confirmacao" class="form-control" required placeholder="Confirme a senha">
+                <div id="msg-senha" class="form-text text-danger" style="display:none;">
+                    As senhas não coincidem!
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="senha_admin" class="form-label">Confirme sua Senha de Administrador</label>
+                <input type="password" id="senha_admin" name="senha_admin" class="form-control" required placeholder="Digite sua senha de administrador">
+            </div>
+
+            <div class="mb-3">
+                <label for="grupo" class="form-label">Grupo</label>
+                <select id="grupo" name="grupo" class="form-select" required>
+                    <option value="" disabled selected>Selecione o grupo</option>
+                    <option value="RH">RH</option>
+                    <option value="Insumos">Insumos</option>
+                    <option value="Confeitaria">Confeitaria</option>
+                    <option value="Administrador">Administrador</option>
+                </select>
+            </div>
+
+            <!-- Dropdown de colaboradores do RH -->
+            <div class="mb-3">
+                <label for="colaborador" class="form-label">Colaborador (RH)</label>
+                <input type="text" id="busca-colaborador" class="form-control mb-2" placeholder="Filtrar por nome...">
+                <select name="colaborador" id="colaborador" class="form-select" required size="5">
+                    {% for c in colaboradores %}
+                        <option value="{{ c.id }}">{{ c.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Criar Usuário</button>
+        </form>
+    {% else %}
+        <div class="alert alert-warning mt-4">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            Você não tem permissão para cadastrar usuários.
+        </div>
+    {% endif %}
+
+</div>
+
+<script>
+function validarSenhas() {
+    const senha = document.getElementById("senha_nova").value;
+    const confirmacao = document.getElementById("senha_confirmacao").value;
+    const msg = document.getElementById("msg-senha");
+
+    if (senha !== confirmacao) {
+        msg.style.display = "block";
+        return false; 
+    } else {
+        msg.style.display = "none";
+        return true;
+    }
+}
+
+function verificarForcaSenha() {
+    const senha = document.getElementById("senha_nova").value;
+    const forca = document.getElementById("forca-senha");
+
+    let nivel = 0;
+    if (senha.length >= 6) nivel++;
+    if (/[A-Z]/.test(senha)) nivel++;
+    if (/[0-9]/.test(senha)) nivel++;
+    if (/[^A-Za-z0-9]/.test(senha)) nivel++;
+
+    let texto = "";
+    let cor = "";
+
+    switch(nivel) {
+        case 0:
+        case 1:
+            texto = "Senha fraca";
+            cor = "text-danger";
+            break;
+        case 2:
+            texto = "Senha média";
+            cor = "text-warning";
+            break;
+        case 3:
+        case 4:
+            texto = "Senha forte";
+            cor = "text-success";
+            break;
+    }
+
+    forca.textContent = texto;
+    forca.className = "form-text " + cor;
+}
+
+// Filtro de colaboradores
+document.getElementById("busca-colaborador").addEventListener("keyup", function() {
+    const filtro = this.value.toLowerCase();
+    const select = document.getElementById("colaborador");
+    for (let i = 0; i < select.options.length; i++) {
+        const option = select.options[i];
+        option.style.display = option.text.toLowerCase().includes(filtro) ? "block" : "none";
+    }
+});
+</script>
+{% endblock %}

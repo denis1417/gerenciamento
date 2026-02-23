@@ -1,0 +1,75 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+
+    <!-- Botão voltar -->
+    <a href="{% url 'colaboradores_list' %}" class="btn btn-outline-primary mb-4">
+        <i class="bi bi-arrow-left-circle"></i> Voltar
+    </a>
+
+    <!-- Card principal -->
+    <div class="card shadow-sm border-0 rounded">
+        <div class="card-body text-center">
+
+            <!-- Foto do colaborador -->
+            {% if colaborador.foto %}
+                <img src="{{ colaborador.foto.url }}" alt="{{ colaborador.nome|default:'Item não informado' }}"
+                     class="rounded-circle mb-3 border" style="width:150px; height:150px; object-fit:cover;">
+            {% else %}
+                <i class="bi bi-person-circle text-muted" style="font-size:150px;"></i>
+            {% endif %}
+
+            <!-- Nome e função -->
+            <h3 class="fw-bold mt-2">{{ colaborador.nome|default:"Item não informado" }}</h3>
+            <p class="text-muted mb-4">{{ colaborador.funcao|default:"Item não informado" }}</p>
+
+            <!-- Dados pessoais -->
+            <div class="row text-start justify-content-center">
+                <div class="col-md-6 col-lg-4 mb-2">
+                    <i class="bi bi-envelope-fill me-2 text-primary"></i>
+                    <strong>Email:</strong> {{ colaborador.email|default:"Item não informado" }}
+                </div>
+                <div class="col-md-6 col-lg-4 mb-2">
+                    <i class="bi bi-phone-fill me-2 text-success"></i>
+                    <strong>Celular:</strong> {{ colaborador.celular|default:"Item não informado" }}
+                </div>
+                <div class="col-md-6 col-lg-4 mb-2">
+                    <i class="bi bi-calendar-fill me-2 text-warning"></i>
+                    <strong>Data de Nascimento:</strong> {{ colaborador.data_nascimento|date:"d/m/Y"|default:"Item não informado" }}
+                </div>
+                <div class="col-md-6 col-lg-4 mb-2">
+                    <i class="bi bi-person-badge-fill me-2 text-info"></i>
+                    <strong>CPF/RG:</strong> {{ colaborador.cpf_rg|default:"Item não informado" }}
+                </div>
+                <div class="col-md-6 col-lg-4 mb-2">
+                    <i class="bi bi-geo-alt-fill me-2 text-danger"></i>
+                    <strong>Endereço:</strong>
+                    {{ colaborador.logradouro|default:"Item não informado" }}, 
+                    {{ colaborador.numero|default:"Item não informado" }},
+                    {{ colaborador.bairro|default:"Item não informado" }}, 
+                    {{ colaborador.cidade|default:"Item não informado" }} - 
+                    {{ colaborador.estado|default:"Item não informado" }}
+                </div>
+                <div class="col-md-6 col-lg-4 mb-2">
+                    <i class="bi bi-gender-ambiguous me-2 text-secondary"></i>
+                    <strong>Sexo:</strong> {{ colaborador.sexo|default:"Item não informado" }}
+                </div>
+            </div>
+
+            <!-- Botão de editar -->
+            <div class="mt-4">
+                <a href="{% url 'colaboradores_edit' colaborador.id %}" class="btn btn-warning">
+                    <i class="bi bi-pencil-square"></i> Editar
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card-body i {
+        font-size: 1.1rem;
+    }
+</style>
+{% endblock %}

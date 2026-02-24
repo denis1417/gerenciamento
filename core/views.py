@@ -1,3 +1,22 @@
+# =========================================================
+# PDF PROFISSIONAL - REPORTLAB PLATYPUS
+# =========================================================
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import cm
+from django.conf import settings
+import os
+from django.http import HttpResponse
+from .models import Produto, Insumo, Colaborador
+from datetime import datetime
+
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import viewsets
+from .serializers import ProdutoSerializer, InsumoSerializer, ColaboradorSerializer
+from .models import Produto, Insumo, Colaborador
+
 from collections import defaultdict
 from datetime import date, timedelta
 from django.db.models import Count
@@ -39,29 +58,39 @@ from .forms import (
 
 
 def login_view(request):
+
     if request.method == "POST":
+
         username = request.POST.get("username")
         password = request.POST.get("password")
+
         user = authenticate(request, username=username, password=password)
+
         if user:
+
             login(request, user)
-            # redireciona pelo grupo
+
             if user.is_superuser or user.groups.filter(name="Administrador").exists():
                 return redirect("home")
+
             elif user.groups.filter(name="RH").exists():
                 return redirect("colaboradores_list")
+
             elif user.groups.filter(name="Insumos").exists():
                 return redirect("insumos_list")
+
             elif user.groups.filter(name="Confeitaria").exists():
                 return redirect("produtos_list")
+
             else:
-                messages.error(request, "Usuário sem grupo definido.")
-                return redirect("login")
+                return redirect("home")
+
         else:
             messages.error(request, "Usuário ou senha incorretos.")
-            return redirect("login")
+
     users_exist = User.objects.exists()
-    return render(request, "login.html", {"users_exist": users_exist})
+
+    return render(request, "core/login.html", {"users_exist": users_exist})
 
 
 def logout_view(request):
@@ -729,3 +758,244 @@ def dashboard(request):
     }
 
     return render(request, 'core/dashboard.html', context)
+
+# =====================================================
+# API REST VIEWSETS
+# =====================================================
+
+
+class ProdutoViewSet(viewsets.ModelViewSet):
+    """
+    API para gerenciamento de Produtos.
+    Apenas usuários autenticados podem acessar.
+    """
+    queryset = Produto.objects.all()
+    serializer_class = ProdutoSerializer
+    permission_classes = [IsAuthenticated]
+
+
+class InsumoViewSet(viewsets.ModelViewSet):
+    """
+    API para gerenciamento de Insumos.
+    Apenas usuários autenticados podem acessar.
+    """
+    queryset = Insumo.objects.all()
+    serializer_class = InsumoSerializer
+    permission_classes = [IsAuthenticated]
+
+
+class ColaboradorViewSet(viewsets.ModelViewSet):
+    """
+    API para gerenciamento de Colaboradores.
+    Apenas usuários autenticados podem acessar.
+    """
+    queryset = Colaborador.objects.all()
+    serializer_class = ColaboradorSerializer
+    permission_classes = [IsAuthenticated]
+
+
+# =========================================================
+# RELATÓRIO PDF EMPRESARIAL PROFISSIONAL (VERSÃO FINAL CORRIGIDA)
+# =========================================================
+
+@login_required
+@check_group("Administrador")
+def relatorio_pdf(request):
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'inline; filename="relatorio_confeitaria.pdf"'
+
+    doc = SimpleDocTemplate(
+        response,
+        pagesize=A4,
+        rightMargin=2*cm,
+        leftMargin=2*cm,
+        topMargin=2*cm,
+        bottomMargin=2*cm
+    )
+
+    elementos = []
+    styles = getSampleStyleSheet()
+
+    # =====================================================
+    # LOCALIZAR LOGO (FORMA PROFISSIONAL E SEGURA)
+    # =====================================================
+
+    possible_paths = [
+
+        os.path.join(settings.BASE_DIR, 'static', 'img', 'logo.png'),
+        os.path.join(settings.BASE_DIR, 'core', 'static', 'img', 'logo.png'),
+
+    ]
+
+    logo_path = None
+
+    for path in possible_paths:
+        if os.path.exists(path):
+            logo_path = path
+            break
+
+    if logo_path:
+
+        logo = Image(
+            logo_path,
+            width=4*cm,
+            height=4*cm
+        )
+
+        logo.hAlign = 'LEFT'
+
+        elementos.append(logo)
+
+    else:
+
+        elementos.append(
+            Paragraph(
+                "<font color='red'><b>Logo não encontrada</b></font>",
+                styles["Normal"]
+            )
+        )
+
+    elementos.append(Spacer(1, 0.5*cm))
+
+    # =====================================================
+    # TÍTULO
+    # =====================================================
+
+    titulo = Paragraph(
+        "<b>RELATÓRIO GERENCIAL<br/>CONFEITARIA SILVIA</b>",
+        styles["Heading1"]
+    )
+
+    elementos.append(titulo)
+
+    elementos.append(Spacer(1, 0.3*cm))
+
+    data_geracao = Paragraph(
+        f"<b>Gerado em:</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        styles["Normal"]
+    )
+
+    elementos.append(data_geracao)
+
+    elementos.append(Spacer(1, 1*cm))
+
+    # =====================================================
+    # RESUMO GERAL
+    # =====================================================
+
+    total_produtos = Produto.objects.count()
+    total_insumos = Insumo.objects.count()
+    total_colaboradores = Colaborador.objects.count()
+
+    elementos.append(
+        Paragraph("<b>RESUMO GERAL</b>", styles["Heading2"])
+    )
+
+    elementos.append(Spacer(1, 0.3*cm))
+
+    dados_resumo = [
+
+        ["Indicador", "Quantidade"],
+        ["Total de Produtos", str(total_produtos)],
+        ["Total de Insumos", str(total_insumos)],
+        ["Total de Colaboradores", str(total_colaboradores)],
+
+    ]
+
+    tabela_resumo = Table(
+        dados_resumo,
+        colWidths=[10*cm, 4*cm]
+    )
+
+    tabela_resumo.setStyle(TableStyle([
+
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#0d6efd")),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+
+        ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
+
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+
+    ]))
+
+    elementos.append(tabela_resumo)
+
+    elementos.append(Spacer(1, 1*cm))
+
+    # =====================================================
+    # TABELA DE COLABORADORES
+    # =====================================================
+
+    elementos.append(
+        Paragraph("<b>COLABORADORES CADASTRADOS</b>", styles["Heading2"])
+    )
+
+    elementos.append(Spacer(1, 0.3*cm))
+
+    dados_colaboradores = [
+
+        ["Nome", "Função"]
+
+    ]
+
+    colaboradores = Colaborador.objects.all().order_by("nome")
+
+    for col in colaboradores:
+
+        dados_colaboradores.append([
+
+            col.nome,
+            col.funcao if col.funcao else "Não informado"
+
+        ])
+
+    tabela_colaboradores = Table(
+
+        dados_colaboradores,
+        colWidths=[10*cm, 4*cm]
+
+    )
+
+    tabela_colaboradores.setStyle(TableStyle([
+
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#198754")),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+
+    ]))
+
+    elementos.append(tabela_colaboradores)
+
+    elementos.append(Spacer(1, 1*cm))
+
+    # =====================================================
+    # RODAPÉ
+    # =====================================================
+
+    rodape = Paragraph(
+
+        "Documento gerado automaticamente pelo Sistema de Gestão da Confeitaria Silvia.",
+
+        styles["Italic"]
+
+    )
+
+    elementos.append(rodape)
+
+    # =====================================================
+    # GERAR PDF
+    # =====================================================
+
+    doc.build(elementos)
+
+    return response

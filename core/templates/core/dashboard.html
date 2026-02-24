@@ -1,171 +1,193 @@
-<!DOCTYPE html>
-<html>
-<head>
+{% extends "core/base.html" %}
 
-    <title>Dashboard - Confeitaria</title>
+{% block title %}Dashboard{% endblock %}
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% block content %}
 
-    <style>
+<div class="container">
 
-        body {
-            font-family: Arial, Helvetica, sans-serif;
-            background: #f4f6f9;
-            padding: 20px;
-        }
+    <!-- Cabeçalho -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
 
-        .welcome {
-            background: white;
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
+        <h2>
+            <i class="bi bi-speedometer2"></i>
+            Dashboard Administrativo
+        </h2>
 
-        .welcome img {
-            border-radius: 50%;
-            border: 2px solid #ddd;
-        }
+        <div>
 
-        .card {
-            display: inline-block;
-            background: white;
-            padding: 20px;
-            margin: 10px;
-            border-radius: 10px;
-            width: 220px;
-            text-align: center;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
+            <a href="{% url 'relatorio_pdf' %}"
+               class="btn btn-danger me-2"
+               target="_blank">
 
-        .alert {
-            background: #ffe5e5;
-            padding: 10px;
-            margin: 8px 0;
-            border-left: 5px solid red;
-            border-radius: 5px;
-        }
+               <i class="bi bi-file-earmark-pdf"></i>
+               Gerar Relatório PDF
 
-        canvas {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin-top: 20px;
-            max-width: 600px;
-        }
+            </a>
 
-    </style>
+            <a href="{% url 'home' %}" class="btn btn-secondary">
+                <i class="bi bi-house"></i>
+                Home
+            </a>
 
-</head>
-<body>
+        </div>
 
-<h1>Dashboard - Sistema Confeitaria</h1>
+    </div>
 
-<div class="welcome">
 
-    {% if colaborador and colaborador.foto %}
-        <img src="{{ colaborador.foto.url }}" width="60" height="60">
-    {% endif %}
+    <div class="row">
 
-    <div>
-        {% if colaborador %}
-            <h2>Bem-vindo, {{ colaborador.nome }}</h2>
-            <p>Função: {{ colaborador.funcao }}</p>
-        {% else %}
-            <h2>Bem-vindo, {{ user.username }}</h2>
-        {% endif %}
+        <!-- Produtos -->
+        <div class="col-md-4">
+            <div class="card shadow mb-4">
+                <div class="card-body">
+
+                    <h5>
+                        <i class="bi bi-box"></i>
+                        Produtos
+                    </h5>
+
+                    <canvas id="graficoProdutos"></canvas>
+
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Insumos -->
+        <div class="col-md-4">
+            <div class="card shadow mb-4">
+                <div class="card-body">
+
+                    <h5>
+                        <i class="bi bi-tools"></i>
+                        Insumos
+                    </h5>
+
+                    <canvas id="graficoInsumos"></canvas>
+
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Colaboradores -->
+        <div class="col-md-4">
+            <div class="card shadow mb-4">
+                <div class="card-body">
+
+                    <h5>
+                        <i class="bi bi-people"></i>
+                        Colaboradores
+                    </h5>
+
+                    <canvas id="graficoColaboradores"></canvas>
+
+                </div>
+            </div>
+        </div>
+
     </div>
 
 </div>
 
-<div class="card">
-    <h3>Produtos</h3>
-    <h2 id="produtos">{{ total_produtos }}</h2>
-</div>
 
-<div class="card">
-    <h3>Insumos</h3>
-    <h2 id="insumos">{{ total_insumos }}</h2>
-</div>
-
-<div class="card">
-    <h3>Colaboradores</h3>
-    <h2 id="colaboradores">{{ total_colaboradores }}</h2>
-</div>
-
-
-<h2>⚠️ Insumos com estoque baixo</h2>
-
-{% for insumo in estoque_baixo %}
-
-<div class="alert">
-    {{ insumo.nome }} — Quantidade: {{ insumo.quantidade_total }}
-</div>
-
-{% empty %}
-
-<p>Nenhum insumo com estoque baixo.</p>
-
-{% endfor %}
-
-
-<h2>📊 Resumo Geral</h2>
-
-<canvas id="grafico"></canvas>
-
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
 
-const totalProdutos = parseInt(document.getElementById('produtos').innerText) || 0;
-const totalInsumos = parseInt(document.getElementById('insumos').innerText) || 0;
-const totalColaboradores = parseInt(document.getElementById('colaboradores').innerText) || 0;
+/// PRODUTOS
+fetch('/api/produtos/')
+.then(res => res.json())
+.then(data => {
 
-const ctx = document.getElementById('grafico');
+    const nomes = data.map(item => item.nome);
 
-new Chart(ctx, {
+    new Chart(document.getElementById('graficoProdutos'), {
+        type: 'bar',
+        data: {
+            labels: nomes,
+            datasets: [{
+                label: 'Produtos',
+                data: nomes.map(() => 1)
+            }]
+        }
+    });
 
-    type: 'bar',
+});
 
-    data: {
 
-        labels: ['Produtos', 'Insumos', 'Colaboradores'],
+/// INSUMOS
+fetch('/api/insumos/')
+.then(res => res.json())
+.then(data => {
 
-        datasets: [{
+    const nomes = data.map(item => item.nome);
 
-            label: 'Quantidade',
+    new Chart(document.getElementById('graficoInsumos'), {
+        type: 'bar',
+        data: {
+            labels: nomes,
+            datasets: [{
+                label: 'Insumos',
+                data: nomes.map(() => 1)
+            }]
+        }
+    });
 
-            data: [
-                totalProdutos,
-                totalInsumos,
-                totalColaboradores
-            ]
+});
 
-        }]
 
-    },
+/// COLABORADORES POR FUNÇÃO
+fetch('/api/colaboradores/')
+.then(res => res.json())
+.then(data => {
 
-    options: {
+    const funcoes = {};
 
-        responsive: true,
+    data.forEach(colab => {
 
-        scales: {
+        const funcao = colab.funcao || "Sem função";
 
-            y: {
-
-                beginAtZero: true
-
-            }
-
+        if (funcoes[funcao]) {
+            funcoes[funcao]++;
+        } else {
+            funcoes[funcao] = 1;
         }
 
-    }
+    });
+
+    const labels = Object.keys(funcoes);
+    const valores = Object.values(funcoes);
+
+    new Chart(document.getElementById('graficoColaboradores'), {
+
+        type: 'bar',
+
+        data: {
+
+            labels: labels,
+
+            datasets: [{
+                label: 'Colaboradores por função',
+                data: valores
+            }]
+
+        },
+
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: true
+                }
+            }
+        }
+
+    });
 
 });
 
 </script>
 
-</body>
-</html>
+{% endblock %}

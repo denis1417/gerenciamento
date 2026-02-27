@@ -1,25 +1,26 @@
 """
-Django settings for confeitaria project.
+Django settings for confeitaria project, pronto para .env
 """
 
 from pathlib import Path
+from decouple import config
 import os
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+# ========================
+# BASE DIR
+# ========================
 
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ========================
 # SEGURANÇA
 # ========================
 
-SECRET_KEY = 'django-insecure-_kbzn*1xrh$merov!7f0m9gi5(cti_oe@t$2n(ek-i(p!w%fn^'
+SECRET_KEY = config('SECRET_KEY')  # Lida pelo .env
+DEBUG = config('DEBUG', default=True, cast=bool)
 
-# DEBUG automático (local True / produção False)
-DEBUG = os.environ.get("DEBUG", "True") == "True"
-
-ALLOWED_HOSTS = ['*']
-
+# ALLOWED_HOSTS como lista
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*').split(',')
 
 # ========================
 # APLICAÇÕES
@@ -37,7 +38,6 @@ INSTALLED_APPS = [
     'core',
 ]
 
-
 # ========================
 # MIDDLEWARE
 # ========================
@@ -52,9 +52,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-
 ROOT_URLCONF = 'confeitaria.urls'
-
 
 # ========================
 # TEMPLATES
@@ -77,26 +75,33 @@ TEMPLATES = [
     },
 ]
 
-
 WSGI_APPLICATION = 'confeitaria.wsgi.application'
 
-
 # ========================
-# DATABASE
+# DATABASE (PostgreSQL ou SQLite)
 # ========================
 
+DB_ENGINE = config('DB_ENGINE', default='django.db.backends.sqlite3')
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('POSTGRES_DB', 'gerenciamento_db'),
-        'USER': os.getenv('POSTGRES_USER', 'postgres'),
-        'PASSWORD': os.getenv('POSTGRES_PASSWORD', '123456'),
-        'HOST': os.getenv('POSTGRES_HOST', 'localhost'),
-        'PORT': os.getenv('POSTGRES_PORT', '5432'),
+if DB_ENGINE == 'django.db.backends.postgresql':
+    DATABASES = {
+        'default': {
+            'ENGINE': DB_ENGINE,
+            'NAME': config('POSTGRES_DB', default='gerenciamento_db'),
+            'USER': config('POSTGRES_USER', default='postgres'),
+            'PASSWORD': config('POSTGRES_PASSWORD', default='123456'),
+            'HOST': config('POSTGRES_HOST', default='localhost'),
+            'PORT': config('POSTGRES_PORT', default='5432'),
+        }
     }
-}
-
+else:
+    # fallback para SQLite
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # ========================
 # PASSWORD VALIDATION
@@ -109,7 +114,6 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-
 # ========================
 # INTERNACIONALIZAÇÃO
 # ========================
@@ -120,18 +124,13 @@ TIME_ZONE = 'America/Sao_Paulo'
 USE_I18N = True
 USE_TZ = True
 
-
 # ========================
 # STATIC FILES
 # ========================
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-
-STATICFILES_DIRS = [
-    BASE_DIR / 'static'
-]
-
+STATICFILES_DIRS = [BASE_DIR / 'static']
 
 # ========================
 # MEDIA FILES
@@ -140,20 +139,16 @@ STATICFILES_DIRS = [
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-
 # ========================
 # DEFAULT PK
 # ========================
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
 # ========================
 # LOGIN
 # ========================
 
-LOGIN_URL = '/accounts/login/'
-LOGIN_REDIRECT_URL = '/'
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'

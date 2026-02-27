@@ -237,7 +237,7 @@ def usuario_delete(request, id):
         user.delete()
         messages.success(
             request, f"Usuário {user.username} deletado com sucesso!")
-        return redirect("listar_usuarios")
+        return redirect("usuarios_list")
     return render(request, "core/delete.html", {"obj": user})
 
 

@@ -66,4 +66,5 @@ class InsumoEstoqueTestCase(TestCase):
 
     def test_estoque_baixo(self):
         estoque_baixo = Insumo.objects.filter(quantidade_total__lt=10)
-        self.assertTrue(self.insumo in estoque_baixo)
+        self.assertEqual(estoque_baixo.count(), 1)
+        self.assertEqual(estoque_baixo.first().nome, "Farinha")

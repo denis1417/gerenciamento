@@ -8,81 +8,84 @@
 
     <!-- Cabeçalho -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-
         <h2>
             <i class="bi bi-speedometer2"></i>
             Dashboard Administrativo
         </h2>
 
         <div>
-
             <a href="{% url 'relatorio_pdf' %}"
                class="btn btn-danger me-2"
                target="_blank">
-
                <i class="bi bi-file-earmark-pdf"></i>
                Gerar Relatório PDF
-
             </a>
 
             <a href="{% url 'home' %}" class="btn btn-secondary">
                 <i class="bi bi-house"></i>
                 Home
             </a>
+        </div>
+    </div>
 
+    <!-- Cards Resumo -->
+    <div class="row mb-4 text-center">
+
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="card-body">
+                    <h6>Total de Produtos</h6>
+                    <h3 class="text-primary">{{ total_produtos|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="card-body">
+                    <h6>Total de Insumos</h6>
+                    <h3 class="text-success">{{ total_insumos|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="card-body">
+                    <h6>Total de Colaboradores</h6>
+                    <h3 class="text-dark">{{ total_colaboradores|default:0 }}</h3>
+                </div>
+            </div>
         </div>
 
     </div>
 
-
+    <!-- Gráficos -->
     <div class="row">
 
-        <!-- Produtos -->
         <div class="col-md-4">
             <div class="card shadow mb-4">
                 <div class="card-body">
-
-                    <h5>
-                        <i class="bi bi-box"></i>
-                        Produtos
-                    </h5>
-
+                    <h5><i class="bi bi-box"></i> Produtos Cadastrados</h5>
                     <canvas id="graficoProdutos"></canvas>
-
                 </div>
             </div>
         </div>
 
-
-        <!-- Insumos -->
         <div class="col-md-4">
             <div class="card shadow mb-4">
                 <div class="card-body">
-
-                    <h5>
-                        <i class="bi bi-tools"></i>
-                        Insumos
-                    </h5>
-
+                    <h5><i class="bi bi-tools"></i> Insumos com Estoque Baixo</h5>
                     <canvas id="graficoInsumos"></canvas>
-
                 </div>
             </div>
         </div>
 
-
-        <!-- Colaboradores -->
         <div class="col-md-4">
             <div class="card shadow mb-4">
                 <div class="card-body">
-
-                    <h5>
-                        <i class="bi bi-people"></i>
-                        Colaboradores
-                    </h5>
-
+                    <h5><i class="bi bi-people"></i> Colaboradores por Função</h5>
                     <canvas id="graficoColaboradores"></canvas>
-
                 </div>
             </div>
         </div>
@@ -91,103 +94,68 @@
 
 </div>
 
-
+<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
+document.addEventListener("DOMContentLoaded", function () {
 
-/// PRODUTOS
-fetch('/api/produtos/')
-.then(res => res.json())
-.then(data => {
+    const totalProdutos = Number("{{ total_produtos|default:'0' }}");
 
-    const nomes = data.map(item => item.nome);
+    const colaboradores = JSON.parse('{{ colaboradores_por_funcao|escapejs|default:"[]" }}');
+    const estoqueBaixo = JSON.parse('{{ estoque_baixo|escapejs|default:"[]" }}');
 
-    new Chart(document.getElementById('graficoProdutos'), {
-        type: 'bar',
-        data: {
-            labels: nomes,
-            datasets: [{
-                label: 'Produtos',
-                data: nomes.map(() => 1)
-            }]
-        }
-    });
-
-});
-
-
-/// INSUMOS
-fetch('/api/insumos/')
-.then(res => res.json())
-.then(data => {
-
-    const nomes = data.map(item => item.nome);
-
-    new Chart(document.getElementById('graficoInsumos'), {
-        type: 'bar',
-        data: {
-            labels: nomes,
-            datasets: [{
-                label: 'Insumos',
-                data: nomes.map(() => 1)
-            }]
-        }
-    });
-
-});
-
-
-/// COLABORADORES POR FUNÇÃO
-fetch('/api/colaboradores/')
-.then(res => res.json())
-.then(data => {
-
-    const funcoes = {};
-
-    data.forEach(colab => {
-
-        const funcao = colab.funcao || "Sem função";
-
-        if (funcoes[funcao]) {
-            funcoes[funcao]++;
-        } else {
-            funcoes[funcao] = 1;
-        }
-
-    });
-
-    const labels = Object.keys(funcoes);
-    const valores = Object.values(funcoes);
-
-    new Chart(document.getElementById('graficoColaboradores'), {
-
-        type: 'bar',
-
-        data: {
-
-            labels: labels,
-
-            datasets: [{
-                label: 'Colaboradores por função',
-                data: valores
-            }]
-
-        },
-
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    display: true
-                }
+    // =============================
+    // GRÁFICO PRODUTOS
+    // =============================
+    const ctxProdutos = document.getElementById('graficoProdutos');
+    if (ctxProdutos) {
+        new Chart(ctxProdutos, {
+            type: 'doughnut',
+            data: {
+                labels: ['Produtos Cadastrados'],
+                datasets: [{
+                    data: [totalProdutos]
+                }]
             }
-        }
+        });
+    }
 
-    });
+    // =============================
+    // GRÁFICO INSUMOS
+    // =============================
+    const ctxInsumos = document.getElementById('graficoInsumos');
+    if (ctxInsumos && estoqueBaixo.length > 0) {
+        new Chart(ctxInsumos, {
+            type: 'bar',
+            data: {
+                labels: estoqueBaixo.map(i => i.nome),
+                datasets: [{
+                    label: 'Quantidade Restante',
+                    data: estoqueBaixo.map(i => i.quantidade_total)
+                }]
+            }
+        });
+    }
+
+    // =============================
+    // GRÁFICO COLABORADORES
+    // =============================
+    const ctxColaboradores = document.getElementById('graficoColaboradores');
+    if (ctxColaboradores && colaboradores.length > 0) {
+        new Chart(ctxColaboradores, {
+            type: 'bar',
+            data: {
+                labels: colaboradores.map(c => c.funcao || "Sem função"),
+                datasets: [{
+                    label: 'Total por Função',
+                    data: colaboradores.map(c => c.total)
+                }]
+            }
+        });
+    }
 
 });
-
 </script>
 
 {% endblock %}

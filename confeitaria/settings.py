@@ -16,11 +16,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SEGURANÇA
 # ========================
 
-SECRET_KEY = config('SECRET_KEY')  # Lida pelo .env
+# Fallback seguro para SECRET_KEY caso não exista no .env (útil para CI)
+SECRET_KEY = config('SECRET_KEY', default='unsafe-secret-for-ci-only')
 DEBUG = config('DEBUG', default=True, cast=bool)
 
 # ALLOWED_HOSTS como lista
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*').split(',')
+ALLOWED_HOSTS = config(
+    'ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
 # ========================
 # APLICAÇÕES
@@ -89,7 +91,7 @@ if DB_ENGINE == 'django.db.backends.postgresql':
             'ENGINE': DB_ENGINE,
             'NAME': config('POSTGRES_DB', default='gerenciamento_db'),
             'USER': config('POSTGRES_USER', default='postgres'),
-            'PASSWORD': config('POSTGRES_PASSWORD', default='123456'),
+            'PASSWORD': config('POSTGRES_PASSWORD', default='postgres'),
             'HOST': config('POSTGRES_HOST', default='localhost'),
             'PORT': config('POSTGRES_PORT', default='5432'),
         }

@@ -30,7 +30,7 @@ class ColaboradorTestCase(TestCase):
 
 
 # ======================================================
-# TESTE DE PRODUTO (EXIGIDO NO PDF)
+# TESTE DE PRODUTO
 # ======================================================
 
 class ProdutoTestCase(TestCase):
@@ -53,7 +53,7 @@ class ProdutoTestCase(TestCase):
 
 
 # ======================================================
-# TESTE DE ESTOQUE BAIXO (EXIGIDO NO PDF)
+# TESTE DE ESTOQUE BAIXO
 # ======================================================
 
 class InsumoEstoqueTestCase(TestCase):
@@ -67,6 +67,3 @@ class InsumoEstoqueTestCase(TestCase):
     def test_estoque_baixo(self):
         estoque_baixo = Insumo.objects.filter(quantidade_total__lt=10)
         self.assertTrue(self.insumo in estoque_baixo)
-
-
-# Create your tests here.

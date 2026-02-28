@@ -8,6 +8,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from django.conf import settings
 import os
+import json
 from django.http import HttpResponse
 from .models import Produto, Insumo, Colaborador
 from datetime import datetime
@@ -729,32 +730,30 @@ def catalogo_delete(request, id):
 @login_required
 def dashboard(request):
 
-    colaborador = None
-    if hasattr(request.user, 'colaborador'):
-        colaborador = request.user.colaborador
+    total_produtos = Produto.objects.count()
+    total_insumos = Insumo.objects.count()
+    total_colaboradores = Colaborador.objects.count()
 
-    total_produtos = Produto.objects.aggregate(
-        total=Count('id')
-    )['total'] or 0
+    # Colaboradores por função (annotate)
+    colaboradores_por_funcao = (
+        Colaborador.objects
+        .values('funcao')
+        .annotate(total=Count('id'))
+    )
 
-    total_insumos = Insumo.objects.aggregate(
-        total=Count('id')
-    )['total'] or 0
-
-    total_colaboradores = Colaborador.objects.aggregate(
-        total=Count('id')
-    )['total'] or 0
-
-    estoque_baixo = Insumo.objects.filter(
-        quantidade_total__lt=10
-    ).order_by('quantidade_total')
+    # Insumos com estoque baixo
+    estoque_baixo = (
+        Insumo.objects
+        .filter(quantidade_total__lt=10)
+        .values('nome', 'quantidade_total')
+    )
 
     context = {
-        'colaborador': colaborador,
         'total_produtos': total_produtos,
         'total_insumos': total_insumos,
         'total_colaboradores': total_colaboradores,
-        'estoque_baixo': estoque_baixo,
+        'colaboradores_por_funcao': json.dumps(list(colaboradores_por_funcao)),
+        'estoque_baixo': json.dumps(list(estoque_baixo)),
     }
 
     return render(request, 'core/dashboard.html', context)

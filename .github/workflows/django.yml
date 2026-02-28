@@ -28,7 +28,7 @@ jobs:
       SECRET_KEY: "django_test_key"
       DEBUG: "True"
       ALLOWED_HOSTS: "localhost,127.0.0.1"
-      DB_ENGINE: "django.db.backends.sqlite3" # Troque para postgresql se quiser testar PostgreSQL
+      DB_ENGINE: "django.db.backends.postgresql"
       POSTGRES_DB: gerenciamento_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres

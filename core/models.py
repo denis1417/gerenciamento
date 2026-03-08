@@ -1,11 +1,38 @@
 from django.db import models
 from django.contrib.auth.models import User
+import uuid
+
+
+def gerar_codigo():
+    return str(uuid.uuid4())[:8]
+
+# ------------------ CATALOGO PRODUTO ------------------
+
+
+class CatalogoProduto(models.Model):
+    nome = models.CharField(max_length=200, unique=True)
+    descricao = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.nome
+
 
 # ------------------ PRODUTO ------------------
 
-
 class Produto(models.Model):
-    codigo = models.CharField(max_length=20, unique=True, default='DEFAULT123')
+    catalogo = models.ForeignKey(
+        CatalogoProduto,
+        on_delete=models.PROTECT,
+        related_name="lotes",
+        null=True,
+        blank=True
+    )
+
+    codigo = models.CharField(
+        max_length=20,
+        unique=True,
+        default=gerar_codigo
+    )
     nome = models.CharField(max_length=100)
     categoria = models.CharField(max_length=50)
     data_fabricacao = models.DateField()
@@ -16,16 +43,8 @@ class Produto(models.Model):
         return f"{self.codigo} - {self.nome}"
 
 
-# ------------------ CATALOGO PRODUTO ------------------
-class CatalogoProduto(models.Model):
-    nome = models.CharField(max_length=200, unique=True)
-    descricao = models.TextField(blank=True, null=True)
-
-    def __str__(self):
-        return self.nome
-
-
 # ------------------ PRODUTO PRONTO ------------------
+
 class ProdutoPronto(models.Model):
     catalogo = models.ForeignKey(
         CatalogoProduto,
@@ -44,6 +63,7 @@ class ProdutoPronto(models.Model):
 
 
 # ------------------ COLABORADOR ------------------
+
 class Colaborador(models.Model):
     rc = models.CharField(max_length=20, unique=True,
                           verbose_name="Registro de Colaborador")
@@ -71,6 +91,7 @@ class Colaborador(models.Model):
 
 
 # ------------------ INSUMO ------------------
+
 class Insumo(models.Model):
     UNIDADES = [
         ("g", "Grama"),
@@ -79,7 +100,7 @@ class Insumo(models.Model):
     ]
 
     nome = models.CharField(max_length=100)
-    quantidade_total = models.FloatField(default=0)  # sempre em g/ml/un
+    quantidade_total = models.FloatField(default=0)
     unidade_base = models.CharField(
         max_length=10, choices=UNIDADES, default="un")
 
@@ -102,6 +123,7 @@ class Insumo(models.Model):
 
 
 # ------------------ SAÍDA DE INSUMO ------------------
+
 class SaidaInsumo(models.Model):
     UNIDADES = [
         ("g", "Grama(s)"),
@@ -113,13 +135,12 @@ class SaidaInsumo(models.Model):
         Colaborador, on_delete=models.CASCADE, related_name='entregas')
     colaborador_retira = models.ForeignKey(
         Colaborador, on_delete=models.CASCADE, related_name='retiradas')
-    quantidade_principal = models.FloatField(default=0)  # ex: quilos, litros
-    quantidade_complementar = models.FloatField(default=0)  # ex: gramas, ml
+    quantidade_principal = models.FloatField(default=0)
+    quantidade_complementar = models.FloatField(default=0)
     unidade = models.CharField(max_length=5, choices=UNIDADES, default="un")
     data = models.DateTimeField(auto_now_add=True)
 
     def total_em_unidade_base(self):
-        """Converte principal + complementar para unidade base do insumo"""
         total = self.quantidade_principal
         if self.unidade in ['g', 'ml', 'un']:
             total += self.quantidade_complementar
@@ -127,7 +148,6 @@ class SaidaInsumo(models.Model):
 
     @property
     def quantidade_total(self):
-        """Retorna a quantidade total em unidade base (principal + complementar)"""
         if self.unidade in ['g', 'ml']:
             return self.quantidade_principal * 1000 + self.quantidade_complementar
         else:
@@ -135,7 +155,6 @@ class SaidaInsumo(models.Model):
 
     @property
     def exibir_quantidade(self):
-        """Retorna a quantidade formatada para exibição"""
         total = self.quantidade_total
         if self.unidade == 'g':
             return f"{int(total/1000)} kg" if total >= 1000 else f"{int(total)} g"
@@ -149,6 +168,7 @@ class SaidaInsumo(models.Model):
 
 
 # ------------------ FICHA DE PRODUÇÃO ------------------
+
 class FichaProducao(models.Model):
     produto = models.ForeignKey(ProdutoPronto, on_delete=models.CASCADE)
     colaborador = models.ForeignKey(
@@ -187,35 +207,68 @@ class FichaInsumo(models.Model):
     def __str__(self):
         return f"{self.insumo.nome} - {self.quantidade_usada}{self.unidade}"
 
-    @staticmethod
-    def formatar_quantidade(qtd, unidade):
-        if unidade == 'ml':
-            litros = int(qtd // 1000)
-            ml = int(qtd % 1000)
-            if litros > 0:
-                return f"{litros} L + {ml} ml" if ml else f"{litros} L"
-            else:
-                return f"{ml} ml"
-        elif unidade == 'g':
-            kg = int(qtd // 1000)
-            g = int(qtd % 1000)
-            if kg > 0:
-                return f"{kg} kg + {g} g" if g else f"{kg} kg"
-            else:
-                return f"{g} g"
-        else:
-            return f"{qtd} {unidade}"
 
+# ------------------ PRODUTO VENDA (PDV) ------------------
 
-class VistoriaInsumo(models.Model):
-    insumo = models.ForeignKey(Insumo, on_delete=models.CASCADE)
-    quantidade_retirada = models.FloatField(default=0)
-    quantidade_usada = models.FloatField(default=0)
-    quantidade_teorica = models.FloatField(default=0)
-    quantidade_real = models.FloatField(default=0)
-    desperdicio = models.FloatField(default=0)
-    data_vistoria = models.DateField(auto_now_add=True)
-    data_vistoria = models.DateField(auto_now_add=True)
+class ProdutoVenda(models.Model):
+
+    produto_pronto = models.ForeignKey(
+        ProdutoPronto,
+        on_delete=models.PROTECT,
+        related_name="vendas"
+    )
+
+    codigo_externo = models.CharField(
+        max_length=20,
+        unique=True
+    )
+
+    preco = models.DecimalField(
+        max_digits=10,
+        decimal_places=2
+    )
+
+    ativo = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"Vistoria - {self.insumo.nome} ({self.data_vistoria})"
+        return f"{self.codigo_externo} - R$ {self.preco}"
+
+
+# ------------------ PEDIDO / VENDA ------------------
+
+class Pedido(models.Model):
+
+    produto_venda = models.ForeignKey(
+        ProdutoVenda,
+        on_delete=models.PROTECT
+    )
+
+    quantidade = models.IntegerField()
+
+    valor_unitario = models.DecimalField(
+        max_digits=10,
+        decimal_places=2
+    )
+
+    valor_total = models.DecimalField(
+        max_digits=10,
+        decimal_places=2
+    )
+
+    data = models.DateTimeField(auto_now_add=True)
+
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True
+    )
+
+    def save(self, *args, **kwargs):
+
+        self.valor_unitario = self.produto_venda.preco
+        self.valor_total = self.quantidade * self.valor_unitario
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Pedido {self.id} - {self.produto_venda}"

@@ -1,38 +1,20 @@
-{% extends "core/base.html" %}
-
-{% block title %}Dashboard{% endblock %}
+{% extends "base.html" %}
+{% load static %}
 
 {% block content %}
 
-<div class="container">
+<div class="container mt-4">
 
-    <!-- Cabeçalho -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>
-            <i class="bi bi-speedometer2"></i>
-            Dashboard Administrativo
-        </h2>
+    <h2 class="mb-4">📊 Dashboard do Sistema</h2>
 
-        <div>
-            <a href="{% url 'relatorio_pdf' %}"
-               class="btn btn-danger me-2"
-               target="_blank">
-               <i class="bi bi-file-earmark-pdf"></i>
-               Gerar Relatório PDF
-            </a>
+    <!-- ============================= -->
+    <!-- CARDS PRINCIPAIS -->
+    <!-- ============================= -->
 
-            <a href="{% url 'home' %}" class="btn btn-secondary">
-                <i class="bi bi-house"></i>
-                Home
-            </a>
-        </div>
-    </div>
+    <div class="row text-center mb-4">
 
-    <!-- Cards Resumo -->
-    <div class="row mb-4 text-center">
-
-        <div class="col-md-4">
-            <div class="card shadow">
+        <div class="col-md-4 mb-3">
+            <div class="card shadow border-primary">
                 <div class="card-body">
                     <h6>Total de Produtos</h6>
                     <h3 class="text-primary">{{ total_produtos|default:0 }}</h3>
@@ -40,8 +22,8 @@
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div class="card shadow">
+        <div class="col-md-4 mb-3">
+            <div class="card shadow border-success">
                 <div class="card-body">
                     <h6>Total de Insumos</h6>
                     <h3 class="text-success">{{ total_insumos|default:0 }}</h3>
@@ -49,8 +31,8 @@
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div class="card shadow">
+        <div class="col-md-4 mb-3">
+            <div class="card shadow border-dark">
                 <div class="card-body">
                     <h6>Total de Colaboradores</h6>
                     <h3 class="text-dark">{{ total_colaboradores|default:0 }}</h3>
@@ -60,31 +42,72 @@
 
     </div>
 
-    <!-- Gráficos -->
+    <!-- ============================= -->
+    <!-- NOVOS CARDS DO PROJETO -->
+    <!-- ============================= -->
+
+    <div class="row text-center mb-4">
+
+        <div class="col-md-4 mb-3">
+            <div class="card shadow border-warning">
+                <div class="card-body">
+                    <h6>Produtos Prontos</h6>
+                    <h3 class="text-warning">{{ total_produtos_prontos|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-3">
+            <div class="card shadow border-danger">
+                <div class="card-body">
+                    <h6>Produtos Vencidos</h6>
+                    <h3 class="text-danger">{{ produtos_vencidos|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-3">
+            <div class="card shadow border-info">
+                <div class="card-body">
+                    <h6>Produtos Próximos do Vencimento</h6>
+                    <h3 class="text-info">{{ produtos_vencendo|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ============================= -->
+    <!-- GRÁFICOS -->
+    <!-- ============================= -->
+
     <div class="row">
 
-        <div class="col-md-4">
-            <div class="card shadow mb-4">
+        <!-- PRODUTOS -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow">
                 <div class="card-body">
-                    <h5><i class="bi bi-box"></i> Produtos Cadastrados</h5>
+                    <h5 class="card-title text-center">Produtos</h5>
                     <canvas id="graficoProdutos"></canvas>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div class="card shadow mb-4">
+        <!-- ESTOQUE BAIXO -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow">
                 <div class="card-body">
-                    <h5><i class="bi bi-tools"></i> Insumos com Estoque Baixo</h5>
+                    <h5 class="card-title text-center">Estoque Baixo</h5>
                     <canvas id="graficoInsumos"></canvas>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div class="card shadow mb-4">
+        <!-- COLABORADORES -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow">
                 <div class="card-body">
-                    <h5><i class="bi bi-people"></i> Colaboradores por Função</h5>
+                    <h5 class="card-title text-center">Colaboradores por Função</h5>
                     <canvas id="graficoColaboradores"></canvas>
                 </div>
             </div>
@@ -92,70 +115,121 @@
 
     </div>
 
+    <!-- ============================= -->
+    <!-- BOTÃO RELATÓRIO -->
+    <!-- ============================= -->
+
+    <div class="text-center mt-4">
+
+        <a href="{% url 'relatorio_pdf' %}" class="btn btn-danger btn-lg shadow">
+            📄 Gerar Relatório em PDF
+        </a>
+
+    </div>
+
 </div>
 
-<!-- Chart.js -->
+<!-- ============================= -->
+<!-- CHART.JS -->
+<!-- ============================= -->
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-document.addEventListener("DOMContentLoaded", function () {
 
-    const totalProdutos = Number("{{ total_produtos|default:'0' }}");
+    // =============================
+    // DADOS DO DJANGO
+    // =============================
 
-    const colaboradores = JSON.parse('{{ colaboradores_por_funcao|escapejs|default:"[]" }}');
-    const estoqueBaixo = JSON.parse('{{ estoque_baixo|escapejs|default:"[]" }}');
+    const totalProdutos = Number("{{ total_produtos|default:'0' }}")
+    const produtosVencidos = Number("{{ produtos_vencidos|default:'0' }}")
+
+    const estoqueBaixo = JSON.parse('{{ estoque_baixo_json|escapejs }}')
+
+    const colaboradoresLabels = JSON.parse('{{ colaboradores_labels|escapejs }}')
+    const colaboradoresDados = JSON.parse('{{ colaboradores_dados|escapejs }}')
 
     // =============================
     // GRÁFICO PRODUTOS
     // =============================
-    const ctxProdutos = document.getElementById('graficoProdutos');
-    if (ctxProdutos) {
+
+    const ctxProdutos = document.getElementById('graficoProdutos')
+
+    if (ctxProdutos){
+
         new Chart(ctxProdutos, {
-            type: 'doughnut',
+            type: 'pie',
             data: {
-                labels: ['Produtos Cadastrados'],
+                labels: ['Produtos válidos','Produtos vencidos'],
                 datasets: [{
-                    data: [totalProdutos]
+                    data: [
+                        totalProdutos - produtosVencidos,
+                        produtosVencidos
+                    ]
                 }]
             }
-        });
+        })
+
     }
 
     // =============================
-    // GRÁFICO INSUMOS
+    // GRÁFICO ESTOQUE
     // =============================
-    const ctxInsumos = document.getElementById('graficoInsumos');
-    if (ctxInsumos && estoqueBaixo.length > 0) {
-        new Chart(ctxInsumos, {
-            type: 'bar',
-            data: {
-                labels: estoqueBaixo.map(i => i.nome),
-                datasets: [{
-                    label: 'Quantidade Restante',
-                    data: estoqueBaixo.map(i => i.quantidade_total)
-                }]
-            }
-        });
+
+    const ctxInsumos = document.getElementById('graficoInsumos')
+
+    if (ctxInsumos){
+
+        if (estoqueBaixo.length === 0){
+
+            new Chart(ctxInsumos, {
+                type: 'bar',
+                data:{
+                    labels:['Sem alerta'],
+                    datasets:[{
+                        label:'Estoque',
+                        data:[0]
+                    }]
+                }
+            })
+
+        }else{
+
+            new Chart(ctxInsumos,{
+                type:'bar',
+                data:{
+                    labels: estoqueBaixo.map(i => i.nome),
+                    datasets:[{
+                        label:'Quantidade Restante',
+                        data: estoqueBaixo.map(i => i.quantidade_total)
+                    }]
+                }
+            })
+
+        }
+
     }
 
     // =============================
     // GRÁFICO COLABORADORES
     // =============================
-    const ctxColaboradores = document.getElementById('graficoColaboradores');
-    if (ctxColaboradores && colaboradores.length > 0) {
-        new Chart(ctxColaboradores, {
-            type: 'bar',
-            data: {
-                labels: colaboradores.map(c => c.funcao || "Sem função"),
-                datasets: [{
-                    label: 'Total por Função',
-                    data: colaboradores.map(c => c.total)
+
+    const ctxColaboradores = document.getElementById('graficoColaboradores')
+
+    if (ctxColaboradores){
+
+        new Chart(ctxColaboradores,{
+            type:'doughnut',
+            data:{
+                labels: colaboradoresLabels,
+                datasets:[{
+                    data: colaboradoresDados
                 }]
             }
-        });
+        })
+
     }
 
-});
 </script>
 
 {% endblock %}

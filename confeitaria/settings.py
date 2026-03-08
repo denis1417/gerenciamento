@@ -1,5 +1,6 @@
 """
-Django settings for confeitaria project, pronto para .env
+Django settings for confeitaria project
+Pronto para .env, CI e deploy em produção
 """
 
 from pathlib import Path
@@ -16,13 +17,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SEGURANÇA
 # ========================
 
-# Fallback seguro para SECRET_KEY caso não exista no .env (útil para CI)
 SECRET_KEY = config('SECRET_KEY', default='unsafe-secret-for-ci-only')
+
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-# ALLOWED_HOSTS como lista
 ALLOWED_HOSTS = config(
-    'ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+    'ALLOWED_HOSTS',
+    default='localhost,127.0.0.1'
+).split(',')
 
 # ========================
 # APLICAÇÕES
@@ -37,6 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'rest_framework',
+    'rest_framework.authtoken',
+
     'core',
 ]
 
@@ -46,6 +50,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+
+    # necessário para produção
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -80,12 +88,13 @@ TEMPLATES = [
 WSGI_APPLICATION = 'confeitaria.wsgi.application'
 
 # ========================
-# DATABASE (PostgreSQL ou SQLite)
+# DATABASE
 # ========================
 
 DB_ENGINE = config('DB_ENGINE', default='django.db.backends.sqlite3')
 
 if DB_ENGINE == 'django.db.backends.postgresql':
+
     DATABASES = {
         'default': {
             'ENGINE': DB_ENGINE,
@@ -96,8 +105,9 @@ if DB_ENGINE == 'django.db.backends.postgresql':
             'PORT': config('POSTGRES_PORT', default='5432'),
         }
     }
+
 else:
-    # fallback para SQLite
+
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -130,9 +140,16 @@ USE_TZ = True
 # STATIC FILES
 # ========================
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+
+STATICFILES_DIRS = [
+    BASE_DIR / 'static'
+]
+
+# importante para produção
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # ========================
 # MEDIA FILES
@@ -154,3 +171,31 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
+
+# ========================
+# DJANGO REST FRAMEWORK
+# ========================
+
+REST_FRAMEWORK = {
+
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+
+}
+
+# ========================
+# SEGURANÇA PARA PRODUÇÃO
+# ========================
+
+if not DEBUG:
+
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = "DENY"

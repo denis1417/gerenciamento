@@ -1,55 +1,83 @@
 # =========================================================
-# PDF PROFISSIONAL - REPORTLAB PLATYPUS
+# IMPORTS
 # =========================================================
+
+# =========================
+# Python
+# =========================
+import os
+import json
+from datetime import datetime, date, timedelta
+from collections import defaultdict
+
+# =========================
+# Django Core
+# =========================
+from django.conf import settings
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import HttpResponse
+from django.utils import timezone
+from django.db import transaction
+from django.db.models import Sum, Avg, F, FloatField, Q, Count
+from django.contrib import messages
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.hashers import check_password
+from django.contrib.auth.models import User, Group
+
+# =========================
+# Django REST Framework
+# =========================
+from rest_framework import viewsets, status
+from rest_framework.views import APIView
+from rest_framework.generics import ListAPIView
+from rest_framework.response import Response
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
+
+# =========================
+# ReportLab (PDF)
+# =========================
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
-from django.conf import settings
-import os
-import json
-from django.http import HttpResponse
-from .models import Produto, Insumo, Colaborador
-from datetime import datetime
 
-from rest_framework.permissions import IsAuthenticated
-from rest_framework import viewsets
-from .serializers import ProdutoSerializer, InsumoSerializer, ColaboradorSerializer
-from .models import Produto, Insumo, Colaborador
-
-from collections import defaultdict
-from datetime import date, timedelta
-from django.db.models import Count
-
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.db.models import Q, Sum, Avg, F, FloatField
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.hashers import check_password
-from django.utils import timezone
-from django.contrib.auth.models import User, Group
-import json
-
+# =========================
+# App Imports
+# =========================
+from .permissions import IsAdminOrReadOnly
 from .decorators import check_group
+
 from .models import (
-    Colaborador,
     Produto,
+    ProdutoVenda,
+    Pedido,
     ProdutoPronto,
+    Insumo,
+    Colaborador,
     FichaProducao,
     FichaInsumo,
     SaidaInsumo,
-    Insumo,
     CatalogoProduto,
-    VistoriaInsumo  # adicionado
+
 )
+
+from .serializers import (
+    ProdutoSerializer,
+    InsumoSerializer,
+    ColaboradorSerializer,
+    ProdutoVendaSerializer,
+    PedidoSerializer,
+)
+
 from .forms import (
     ProdutoProntoForm,
     FichaProducaoForm,
     InsumoForm,
     SaidaInsumoForm,
-    ColaboradorForm
+    ColaboradorForm,
 )
 
 
@@ -733,69 +761,189 @@ def dashboard(request):
     total_produtos = Produto.objects.count()
     total_insumos = Insumo.objects.count()
     total_colaboradores = Colaborador.objects.count()
+    total_produtos_prontos = ProdutoPronto.objects.count()
 
-    # Colaboradores por função (annotate)
+    # Produtos vencidos
+    produtos_vencidos = ProdutoPronto.objects.filter(
+        data_validade__lt=date.today()
+    ).count()
+
+    # Produtos próximos do vencimento
+    produtos_vencendo = ProdutoPronto.objects.filter(
+        data_validade__lte=date.today() + timedelta(days=3),
+        data_validade__gte=date.today()
+    ).count()
+
+    # ==========================
+    # COLABORADORES POR FUNÇÃO
+    # ==========================
+
     colaboradores_por_funcao = (
         Colaborador.objects
         .values('funcao')
         .annotate(total=Count('id'))
     )
 
-    # Insumos com estoque baixo
+    colaboradores_labels = [c['funcao'] for c in colaboradores_por_funcao]
+    colaboradores_dados = [c['total'] for c in colaboradores_por_funcao]
+
+    # ==========================
+    # ESTOQUE BAIXO
+    # ==========================
+
     estoque_baixo = (
         Insumo.objects
         .filter(quantidade_total__lt=10)
         .values('nome', 'quantidade_total')
     )
 
+    # ==========================
+    # CONTEXTO
+    # ==========================
+
     context = {
-        'total_produtos': total_produtos,
-        'total_insumos': total_insumos,
-        'total_colaboradores': total_colaboradores,
-        'colaboradores_por_funcao': json.dumps(list(colaboradores_por_funcao)),
-        'estoque_baixo': json.dumps(list(estoque_baixo)),
+
+        "total_produtos": total_produtos,
+        "total_insumos": total_insumos,
+        "total_colaboradores": total_colaboradores,
+        "total_produtos_prontos": total_produtos_prontos,
+
+        "produtos_vencidos": produtos_vencidos,
+        "produtos_vencendo": produtos_vencendo,
+
+        "estoque_baixo_json": json.dumps(list(estoque_baixo)),
+
+        "colaboradores_labels": json.dumps(colaboradores_labels),
+        "colaboradores_dados": json.dumps(colaboradores_dados),
+
     }
 
-    return render(request, 'core/dashboard.html', context)
+    return render(request, "core/dashboard.html", context)
 
-# =====================================================
-# API REST VIEWSETS
-# =====================================================
 
+# =========================================================
+# FUNÇÃO DE CHECAGEM ADMIN (para decorators)
+# =========================================================
+def is_admin_user(user):
+    return user.is_authenticated and user.is_staff
+
+
+# =========================
+# VIEWSETS DRF
+# =========================
 
 class ProdutoViewSet(viewsets.ModelViewSet):
-    """
-    API para gerenciamento de Produtos.
-    Apenas usuários autenticados podem acessar.
-    """
     queryset = Produto.objects.all()
     serializer_class = ProdutoSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        """
+        Define permissões baseadas no tipo de autenticação:
+        - Se for sessão (frontend/admin): apenas IsAdminUser
+        - Se for token (externo): IsAuthenticated
+        """
+        if any(isinstance(auth, SessionAuthentication) for auth in self.authentication_classes):
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
+
+    def get_authenticators(self):
+        """
+        Escolhe autenticação baseada no endpoint de acesso.
+        """
+        if self.request and self.request.user.is_authenticated:
+            # usuário logado via frontend/admin
+            return [SessionAuthentication()]
+        # acesso externo: token obrigatório
+        return [TokenAuthentication()]
+
+    def retrieve(self, request, *args, **kwargs):
+        produto = self.get_object()
+        produto_pronto = ProdutoPronto.objects.filter(
+            catalogo=produto.catalogo
+        ).first()
+        if produto_pronto:
+            data = {
+                "id": produto.id,
+                "nome": produto.nome,
+                "codigo": produto.codigo,
+                "categoria": produto.categoria,
+                "quantidade_estoque": produto_pronto.quantidade,
+                "data_fabricacao": produto_pronto.data_fabricacao,
+                "data_validade": produto_pronto.data_validade,
+                "peso_produto": produto_pronto.peso_produto,
+                # preço inserido manualmente
+                "preco": getattr(produto, "preco", None),
+            }
+            return Response(data)
+        return super().retrieve(request, *args, **kwargs)
 
 
 class InsumoViewSet(viewsets.ModelViewSet):
     """
     API para gerenciamento de Insumos.
-    Apenas usuários autenticados podem acessar.
+    Apenas usuários administradores podem acessar.
     """
     queryset = Insumo.objects.all()
     serializer_class = InsumoSerializer
-    permission_classes = [IsAuthenticated]
+    authentication_classes = [SessionAuthentication, TokenAuthentication]
+    permission_classes = [IsAdminUser]
 
 
 class ColaboradorViewSet(viewsets.ModelViewSet):
     """
     API para gerenciamento de Colaboradores.
-    Apenas usuários autenticados podem acessar.
+    Apenas usuários administradores podem acessar.
     """
     queryset = Colaborador.objects.all()
     serializer_class = ColaboradorSerializer
-    permission_classes = [IsAuthenticated]
+    authentication_classes = [SessionAuthentication, TokenAuthentication]
+    permission_classes = [IsAdminUser]
 
+
+class ProdutoVendaListView(ListAPIView):
+    """
+    API para listar produtos à venda.
+    Apenas usuários administradores podem acessar.
+    """
+    serializer_class = ProdutoVendaSerializer
+    authentication_classes = [SessionAuthentication, TokenAuthentication]
+    permission_classes = [IsAdminUser]
+
+    def get_queryset(self):
+        # Apenas produtos ativos e com estoque disponível
+        return ProdutoVenda.objects.filter(
+            ativo=True,
+            produto_pronto__quantidade__gt=0
+        ).distinct()
+
+
+class CriarPedidoView(ListAPIView):
+    """
+    API para criar pedidos.
+    Apenas usuários administradores podem acessar.
+    """
+    serializer_class = PedidoSerializer
+    authentication_classes = [SessionAuthentication, TokenAuthentication]
+    permission_classes = [IsAdminUser]
+
+    def get_queryset(self):
+        return Pedido.objects.all()
+
+
+class VendaViewSet(viewsets.ModelViewSet):
+    """
+    API para gerenciamento de Vendas.
+    Apenas usuários administradores podem acessar.
+    """
+    queryset = Pedido.objects.all()
+    serializer_class = PedidoSerializer
+    authentication_classes = [SessionAuthentication, TokenAuthentication]
+    permission_classes = [IsAdminUser]
 
 # =========================================================
 # RELATÓRIO PDF EMPRESARIAL PROFISSIONAL (VERSÃO FINAL CORRIGIDA)
 # =========================================================
+
 
 @login_required
 @check_group("Administrador")
@@ -998,3 +1146,157 @@ def relatorio_pdf(request):
     doc.build(elementos)
 
     return response
+
+
+class CriarPedidoView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        produto_id = request.data.get("produto")
+        quantidade = int(request.data.get("quantidade"))
+
+        produto_venda = ProdutoVenda.objects.get(id=produto_id)
+
+        # Verificar estoque total
+        estoque_total = ProdutoPronto.objects.filter(
+            catalogo=produto_venda.produto_pronto.catalogo
+        ).aggregate(total=Sum("quantidade"))["total"] or 0
+
+        if estoque_total < quantidade:
+            return Response(
+                {"erro": "Estoque insuficiente"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Dar baixa nos lotes (FIFO simples)
+        lotes = ProdutoPronto.objects.filter(
+            catalogo=produto_venda.produto_pronto.catalogo
+        ).order_by("data_validade")
+
+        restante = quantidade
+
+        for lote in lotes:
+            if restante <= 0:
+                break
+
+            if lote.quantidade >= restante:
+                lote.quantidade -= restante
+                lote.save()
+                restante = 0
+            else:
+                restante -= lote.quantidade
+                lote.quantidade = 0
+                lote.save()
+
+        Pedido.objects.create(
+            produto=produto_venda,
+            quantidade=quantidade
+        )
+
+        return Response({"mensagem": "Pedido realizado com sucesso"})
+
+
+class VendaViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def create(self, request):
+        # -----------------------------
+        # Recebe código_externo em vez do id
+        # -----------------------------
+        codigo = request.data.get("codigo_externo")
+        quantidade = request.data.get("quantidade")
+
+        if not codigo or not quantidade:
+            return Response(
+                {"erro": "codigo_externo e quantidade são obrigatórios"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            quantidade = int(quantidade)
+        except:
+            return Response(
+                {"erro": "quantidade deve ser número inteiro"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # -----------------------------
+        # Buscar ProdutoVenda pelo código externo
+        # -----------------------------
+        try:
+            produto_venda = ProdutoVenda.objects.get(
+                codigo_externo=codigo,
+                ativo=True
+            )
+        except ProdutoVenda.DoesNotExist:
+            return Response(
+                {"erro": "Produto não encontrado ou inativo"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # -----------------------------
+        # Verificar estoque disponível
+        # -----------------------------
+        estoque_total = ProdutoPronto.objects.filter(
+            catalogo=produto_venda.produto_pronto.catalogo,
+            data_validade__gte=timezone.now().date()
+        ).aggregate(total=Sum("quantidade"))["total"] or 0
+
+        if quantidade > estoque_total:
+            return Response(
+                {"erro": f"Estoque insuficiente. Disponível: {estoque_total}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # -----------------------------
+        # Baixa automática (FIFO)
+        # -----------------------------
+        produtos_estoque = ProdutoPronto.objects.filter(
+            catalogo=produto_venda.produto_pronto.catalogo,
+            data_validade__gte=timezone.now().date()
+        ).order_by("data_validade")
+
+        restante = quantidade
+
+        for item in produtos_estoque:
+            if restante <= 0:
+                break
+
+            if item.quantidade >= restante:
+                item.quantidade -= restante
+                item.save()
+                restante = 0
+            else:
+                restante -= item.quantidade
+                item.quantidade = 0
+                item.save()
+
+        # -----------------------------
+        # Criar Pedido
+        # -----------------------------
+        valor_total = produto_venda.preco * quantidade
+
+        pedido = Pedido.objects.create(
+            produto_venda=produto_venda,
+            quantidade=quantidade,
+            valor_unitario=produto_venda.preco,
+            valor_total=valor_total
+        )
+
+        # -----------------------------
+        # Retorno
+        # -----------------------------
+        return Response(
+            {
+                "mensagem": "Venda realizada com sucesso",
+                "pedido_id": pedido.id,
+                "produto": produto_venda.produto_pronto.catalogo.nome,
+                "quantidade": quantidade,
+                "valor_unitario": produto_venda.preco,
+                "valor_total": valor_total,
+            },
+            status=status.HTTP_201_CREATED
+        )

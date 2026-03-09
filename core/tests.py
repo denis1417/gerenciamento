@@ -1,4 +1,6 @@
 from django.test import TestCase
+from django.contrib.auth.models import User
+from django.urls import reverse
 from core.models import Colaborador, Produto, Insumo
 from datetime import date
 
@@ -68,3 +70,25 @@ class InsumoEstoqueTestCase(TestCase):
         estoque_baixo = Insumo.objects.filter(quantidade_total__lt=10)
         self.assertEqual(estoque_baixo.count(), 1)
         self.assertEqual(estoque_baixo.first().nome, "Farinha")
+
+# ======================================================
+# TESTE DA VIEW DO DASHBOARD
+# ======================================================
+
+
+class DashboardTestCase(TestCase):
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='teste',
+            password='123456'
+        )
+        self.client.login(username='teste', password='123456')
+
+    def test_dashboard_carrega(self):
+        response = self.client.get(reverse('dashboard'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_dashboard_template(self):
+        response = self.client.get(reverse('dashboard'))
+        self.assertTemplateUsed(response, 'core/dashboard.html')

@@ -2,8 +2,15 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from . import views
-from .views import (ColaboradorViewSet, CriarPedidoView, InsumoViewSet,
-                    ProdutoVendaListView, ProdutoViewSet, VendaViewSet)
+from .views import (
+    ColaboradorViewSet,
+    CriarPedidoView,
+    PedidoListView,
+    InsumoViewSet,
+    ProdutoVendaListView,
+    ProdutoViewSet,
+    VendaViewSet
+)
 
 # =========================================================
 # ROUTER API (DRF)
@@ -110,7 +117,13 @@ urlpatterns = [
     # ============================
     path("api/produtos-venda/", ProdutoVendaListView.as_view(),
          name="api_produtos_venda"),
-    path("api/pedidos/", CriarPedidoView.as_view(), name="api_pedidos"),
+
+    # Rota para CRIAR pedido (executa sua lógica de baixa de estoque)
+    path("api/pedidos/criar/", CriarPedidoView.as_view(), name="api_pedidos_criar"),
+
+    # Rota para LISTAR pedidos (executa a listagem para o Admin)
+    path("api/pedidos/listar/", PedidoListView.as_view(),
+         name="api_pedidos_listar"),
 
     # ============================
     # ROUTER DRF

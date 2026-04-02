@@ -894,9 +894,9 @@ class ProdutoVendaListView(ListAPIView):
         ).distinct()
 
 
-class CriarPedidoView(ListAPIView):
+class PedidoListView(ListAPIView):
     """
-    API para criar pedidos.
+    API para LISTAR pedidos. ;)
     Apenas usuários administradores podem acessar.
     """
     serializer_class = PedidoSerializer
@@ -1168,8 +1168,9 @@ class CriarPedidoView(APIView):
                 lote.save()
 
         Pedido.objects.create(
-            produto=produto_venda,
-            quantidade=quantidade
+            produto_venda=produto_venda,
+            quantidade=quantidade,
+            usuario=request.user  # Se você tiver o usuário no contexto
         )
 
         return Response({"mensagem": "Pedido realizado com sucesso"})

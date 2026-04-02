@@ -5,11 +5,12 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APITestCase
 
-from core.models import Colaborador, Insumo, Produto, VistoriaInsumo
+from core.models import Colaborador, Insumo, Produto, VistoriaInsumo, CatalogoProduto, ProdutoVenda, ProdutoPronto, Pedido
 
 # ======================================================
 # TESTE DE COLABORADOR
 # ======================================================
+
 
 class ColaboradorTestCase(TestCase):
 
@@ -247,3 +248,88 @@ class ProdutoAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, 204)
         self.assertEqual(Produto.objects.count(), 0)
+
+
+class PedidoFluxoTestCase(APITestCase):
+
+    def setUp(self):
+        from core.models import CatalogoProduto, ProdutoVenda, ProdutoPronto
+        from datetime import date
+
+        # 1. Usuário Admin
+        self.admin_user = User.objects.create_superuser(
+            username='admin_test',
+            password='password123',
+            email='admin@teste.com'
+        )
+
+        # 2. Catálogo (Apenas nome e descrição conforme seu model)
+        self.catalogo = CatalogoProduto.objects.create(
+            nome="Bolo de Chocolate",
+            descricao="Bolo fofinho"
+        )
+
+        # 3. Lotes (Preenchendo data_fabricacao e data_validade que são obrigatórios)
+        hoje = date.today()
+        self.lote_antigo = ProdutoPronto.objects.create(
+            catalogo=self.catalogo,
+            quantidade=10,
+            data_fabricacao=hoje,
+            data_validade=date(2026, 5, 1),
+            peso_produto=500.0
+        )
+
+        self.lote_novo = ProdutoPronto.objects.create(
+            catalogo=self.catalogo,
+            quantidade=10,
+            data_fabricacao=hoje,
+            data_validade=date(2026, 12, 1),
+            peso_produto=500.0
+        )
+
+        # 4. Produto Venda (Precisa do codigo_externo único e preco decimal)
+        self.produto_venda = ProdutoVenda.objects.create(
+            produto_pronto=self.lote_antigo,
+            codigo_externo="BOLO-001",  # Campo obrigatório no seu model
+            preco=50.00,
+            ativo=True
+        )
+
+    def test_criar_pedido_baixa_estoque_fifo(self):
+        """Testa se a CriarPedidoView reduz o estoque do lote mais antigo primeiro"""
+        self.client.force_authenticate(user=self.admin_user)
+        url = reverse('api_pedidos_criar')
+
+        # O campo esperado no POST deve ser 'produto' (ID do ProdutoVenda) e 'quantidade'
+        data = {'produto': self.produto_venda.id, 'quantidade': 12}
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, 200)
+
+        # Recarregar lotes para ver se a baixa funcionou
+        self.lote_antigo.refresh_from_db()
+        self.lote_novo.refresh_from_db()
+
+        # Se a lógica FIFO estiver certa:
+        # Lote antigo (10) deve zerar. Lote novo (10) deve cair para 8.
+        self.assertEqual(self.lote_antigo.quantidade, 0)
+        self.assertEqual(self.lote_novo.quantidade, 8)
+
+    def test_listar_pedidos_acesso_admin(self):
+        """Testa se a nova URL de listagem funciona para admins"""
+        self.client.force_authenticate(user=self.admin_user)
+        url = reverse('api_pedidos_listar')
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_criar_pedido_estoque_insuficiente(self):
+        """Testa se bloqueia pedido maior que o estoque total (20 unidades)"""
+        self.client.force_authenticate(user=self.admin_user)
+        url = reverse('api_pedidos_criar')
+
+        data = {'produto': self.produto_venda.id, 'quantidade': 25}
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Estoque insuficiente", response.data['erro'])

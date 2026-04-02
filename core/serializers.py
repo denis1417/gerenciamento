@@ -1,6 +1,7 @@
 from rest_framework import serializers
-from .models import Produto, Insumo, Colaborador, Pedido
-from .models import Produto, ProdutoPronto, ProdutoVenda
+
+from .models import (Colaborador, Insumo, Pedido, Produto, ProdutoPronto,
+                     ProdutoVenda)
 
 
 class ProdutoSerializer(serializers.ModelSerializer):

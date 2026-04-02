@@ -1,15 +1,11 @@
-from django.test import TestCase
-from django.contrib.auth.models import User
-from django.urls import reverse
-from core.models import Colaborador, Produto, Insumo
-from datetime import date
-from core.models import Colaborador, Produto, Insumo, VistoriaInsumo
-from rest_framework.test import APITestCase
-from django.urls import reverse
-from django.contrib.auth.models import User
-from core.models import Produto
 from datetime import date
 
+from django.contrib.auth.models import User
+from django.test import TestCase
+from django.urls import reverse
+from rest_framework.test import APITestCase
+
+from core.models import Colaborador, Insumo, Produto, VistoriaInsumo
 
 # ======================================================
 # TESTE DE COLABORADOR

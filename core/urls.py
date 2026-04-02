@@ -1,14 +1,9 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
 from . import views
-from .views import (
-    ProdutoViewSet,
-    InsumoViewSet,
-    ColaboradorViewSet,
-    VendaViewSet,
-    ProdutoVendaListView,
-    CriarPedidoView,
-)
+from .views import (ColaboradorViewSet, CriarPedidoView, InsumoViewSet,
+                    ProdutoVendaListView, ProdutoViewSet, VendaViewSet)
 
 # =========================================================
 # ROUTER API (DRF)

@@ -1,10 +1,8 @@
 from rest_framework import viewsets
-from .models import Produto, Insumo, Colaborador
-from .serializers import (
-    ProdutoSerializer,
-    InsumoSerializer,
-    ColaboradorSerializer
-)
+
+from .models import Colaborador, Insumo, Produto
+from .serializers import (ColaboradorSerializer, InsumoSerializer,
+                          ProdutoSerializer)
 
 
 class ProdutoViewSet(viewsets.ModelViewSet):

@@ -1,5 +1,6 @@
 from rest_framework.routers import DefaultRouter
-from .api_views import ProdutoViewSet, InsumoViewSet, ColaboradorViewSet
+
+from .api_views import ColaboradorViewSet, InsumoViewSet, ProdutoViewSet
 
 router = DefaultRouter()
 

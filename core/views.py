@@ -2,85 +2,61 @@
 # IMPORTS
 # =========================================================
 
+import json
 # =========================
 # Python
 # =========================
 import os
-import json
-from datetime import datetime, date, timedelta
 from collections import defaultdict
+from datetime import date, datetime, timedelta
 
-# =========================
-# Django Core
-# =========================
-from .models import VistoriaInsumo
 from django.conf import settings
-from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse
-from django.utils import timezone
-from django.db import transaction
-from django.db.models import Sum, Avg, F, FloatField, Q, Count
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import check_password
-from django.contrib.auth.models import User, Group
-
-# =========================
-# Django REST Framework
-# =========================
-from rest_framework import viewsets, status
-from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView
-from rest_framework.response import Response
-from rest_framework.authentication import SessionAuthentication, TokenAuthentication
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
-
+from django.contrib.auth.models import Group, User
+from django.db import transaction
+from django.db.models import Avg, Count, F, FloatField, Q, Sum
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import cm
 # =========================
 # ReportLab (PDF)
 # =========================
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import cm
+from reportlab.platypus import (Image, Paragraph, SimpleDocTemplate, Spacer,
+                                Table, TableStyle)
+# =========================
+# Django REST Framework
+# =========================
+from rest_framework import status, viewsets
+from rest_framework.authentication import (SessionAuthentication,
+                                           TokenAuthentication)
+from rest_framework.generics import ListAPIView
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from .decorators import check_group
+from .forms import (ColaboradorForm, FichaProducaoForm, InsumoForm,
+                    ProdutoProntoForm, SaidaInsumoForm)
+# =========================
+# Django Core
+# =========================
+from .models import (CatalogoProduto, Colaborador, FichaInsumo, FichaProducao,
+                     Insumo, Pedido, Produto, ProdutoPronto, ProdutoVenda,
+                     SaidaInsumo, VistoriaInsumo)
 # =========================
 # App Imports
 # =========================
 from .permissions import IsAdminOrReadOnly
-from .decorators import check_group
-
-from .models import (
-    Produto,
-    ProdutoVenda,
-    Pedido,
-    ProdutoPronto,
-    Insumo,
-    Colaborador,
-    FichaProducao,
-    FichaInsumo,
-    SaidaInsumo,
-    CatalogoProduto,
-
-)
-
-from .serializers import (
-    ProdutoSerializer,
-    InsumoSerializer,
-    ColaboradorSerializer,
-    ProdutoVendaSerializer,
-    PedidoSerializer,
-)
-
-from .forms import (
-    ProdutoProntoForm,
-    FichaProducaoForm,
-    InsumoForm,
-    SaidaInsumoForm,
-    ColaboradorForm,
-)
-
+from .serializers import (ColaboradorSerializer, InsumoSerializer,
+                          PedidoSerializer, ProdutoSerializer,
+                          ProdutoVendaSerializer)
 
 # =========================================================
 # LOGIN / LOGOUT

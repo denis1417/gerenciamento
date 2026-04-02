@@ -3,9 +3,10 @@ Django settings for confeitaria project
 Pronto para .env, CI e deploy em produção
 """
 
-from pathlib import Path
-from decouple import config
 import os
+from pathlib import Path
+
+from decouple import config
 
 # ========================
 # BASE DIR

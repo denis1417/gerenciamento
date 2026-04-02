@@ -1,14 +1,8 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import (
-    FichaProducao,
-    Colaborador,
-    Insumo,
-    ProdutoPronto,
-    SaidaInsumo,
-    CatalogoProduto
-)
 
+from .models import (CatalogoProduto, Colaborador, FichaProducao, Insumo,
+                     ProdutoPronto, SaidaInsumo)
 
 # ------------------ CRIAR USUÁRIO ------------------
 

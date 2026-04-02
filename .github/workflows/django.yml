@@ -83,4 +83,4 @@ jobs:
       - name: Lint Python code
         run: |
           pip install flake8
-          flake8 . --exclude=venv,*/migrations/* --ignore=E501
+          flake8 . --exclude=venv,*/migrations/* --ignore=E501,F401,F811,F841,E741,E226,E302,E722

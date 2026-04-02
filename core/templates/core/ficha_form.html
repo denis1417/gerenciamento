@@ -1,0 +1,111 @@
+{% extends "core/base.html" %}
+{% load static %}
+{% load insumo_filters %}
+
+{% block title %}
+Criar Ficha Técnica - {% if produto %}{{ produto.catalogo.nome }}{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container my-5" style="max-width: 950px;">
+    <div class="card shadow-lg border-0 rounded-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center rounded-top-4">
+            <h4 class="mb-0"><i class="bi bi-clipboard-data me-2"></i>Nova Ficha Técnica</h4>
+            <a href="{% url 'produtos_list' %}" class="btn btn-light btn-sm rounded-pill px-3">
+                <i class="bi bi-arrow-left"></i> Voltar
+            </a>
+        </div>
+        <div class="card-body p-4">
+            <form method="POST">
+                {% csrf_token %}
+                
+                <!-- Produto e Peso lado a lado -->
+                <div class="row g-3 mb-3">
+                    <div class="col-md-8">
+                        <label class="form-label">Produto</label>
+                        {% if produto %}
+                            <input type="text" class="form-control" value="{{ produto.catalogo.nome }}" readonly>
+                            <input type="hidden" name="produto" value="{{ produto.id }}">
+                        {% else %}
+                            <select name="produto" id="produto" class="form-select" required>
+                                <option value="">Selecione um produto</option>
+                                {% for p in produtos_list %}
+                                    <option value="{{ p.id }}">{{ p.catalogo.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Peso do Produto (g)</label>
+                        {{ form.peso_produto }}
+                    </div>
+                </div>
+
+                <!-- Outras informações da ficha -->
+                <div class="mb-3">
+                    {{ form.as_p }}
+                </div>
+
+                <!-- Insumos disponíveis -->
+                <h5 class="fw-bold mt-4 text-primary">Insumos disponíveis</h5>
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered table-striped align-middle text-center table-sm">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Insumo</th>
+                                <th>Qtd Disponível</th>
+                                <th>Unidade</th>
+                                <th>Qtd Usada</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if insumos_disponiveis %}
+                                {% for insumo_saida in insumos_disponiveis %}
+                                    <tr>
+                                        <td>{{ insumo_saida.insumo.nome }}</td>
+                                        <td>{{ insumo_saida.quantidade_total|formatar_quantidade:insumo_saida.insumo.unidade_base }}</td>
+                                        <td>{{ insumo_saida.insumo.unidade_base }}</td>
+                                        <td>
+                                            <input type="hidden" name="insumo_id[]" value="{{ insumo_saida.id }}">
+                                            <input type="number" name="quantidade_usada[]" step="0.01" min="0"
+                                                   max="{{ insumo_saida.quantidade_total }}"
+                                                   class="form-control form-control-sm" required>
+                                            <input type="hidden" name="unidade[]" value="{{ insumo_saida.insumo.unidade_base }}">
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">Nenhum insumo disponível.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Confirmação de senha e botão horizontal -->
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-8">
+                        <label for="senha_confirmacao" class="form-label">Digite sua senha para confirmar</label>
+                        <input type="password" name="senha_confirmacao" id="senha_confirmacao" class="form-control" required>
+                    </div>
+                    <div class="col-md-4 d-flex justify-content-end gap-2">
+                        <a href="{% url 'produtos_list' %}" class="btn btn-danger flex-fill">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary flex-fill">Salvar Ficha</button>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.table td, .table th {
+    padding: 0.35rem;
+    vertical-align: middle;
+}
+</style>
+{% endblock %}

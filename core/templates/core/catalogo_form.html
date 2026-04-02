@@ -1,0 +1,47 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Cadastrar Produto - Catálogo{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+
+    <div class="card shadow-sm border rounded">
+        <div class="card-header bg-primary text-white fw-bold">
+            📝 Cadastrar Produto no Catálogo
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label for="nome" class="form-label">Nome do Produto</label>
+                    <input type="text" name="nome" id="nome" class="form-control" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="descricao" class="form-label">Descrição (opcional)</label>
+                    <textarea name="descricao" id="descricao" class="form-control" rows="3"></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-success btn-hover-3d">💾 Salvar</button>
+                <a href="{% url 'catalogo_list' %}" class="btn btn-secondary btn-hover-3d ms-2">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.btn-hover-3d {
+    font-size: 0.9rem;
+    padding: 0.45rem 1rem;
+    border-radius: 6px;
+    font-weight: 500;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    transition: all 0.2s ease;
+}
+.btn-hover-3d:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+</style>
+{% endblock %}

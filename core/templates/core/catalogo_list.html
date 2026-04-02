@@ -1,0 +1,80 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Catálogo de Produtos{% endblock %}
+
+{% block content %}
+{% if user.is_superuser %}
+<div class="container mt-5">
+
+    <!-- Cabeçalho -->
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white shadow-sm border rounded flex-wrap">
+        <h2 class="h4 fw-bold text-primary mb-0">📋 Catálogo de Produtos</h2>
+        <div class="d-flex gap-2 flex-wrap">
+            <!-- Botão de voltar -->
+            <a href="{% url 'produtos_list' %}" class="btn btn-secondary px-3 py-2 btn-hover-3d">
+                <i class="bi bi-arrow-left"></i> Voltar
+            </a>
+
+            <!-- Botão de novo produto -->
+            <a href="{% url 'catalogo_create' %}" class="btn btn-primary px-4 py-2 btn-hover-3d">+ Novo Produto</a>
+        </div>
+    </div>
+
+    <!-- Tabela -->
+    <div class="table-responsive shadow-sm">
+        <table class="table table-hover align-middle table-bordered text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Nome</th>
+                    <th>Descrição</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in catalogo %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ p.nome }}</td>
+                    <td>{{ p.descricao|default:"—" }}</td>
+                    <td>
+                        <a href="{% url 'catalogo_edit' p.id %}" class="btn btn-sm btn-warning me-1 btn-hover-3d">Editar</a>
+                        <a href="{% url 'catalogo_delete' p.id %}" class="btn btn-sm btn-danger btn-hover-3d">Deletar</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-muted py-4">Nenhum produto cadastrado no catálogo.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-danger m-5">
+    <h5>Acesso negado 🚫</h5>
+    <p>Você não tem permissão para visualizar esta página.</p>
+</div>
+{% endif %}
+
+<style>
+.btn-hover-3d {
+    font-size: 0.9rem;
+    padding: 0.45rem 1rem;
+    border-radius: 6px;
+    font-weight: 500;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    transition: all 0.2s ease;
+}
+.btn-hover-3d:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+@media (max-width: 767px) { .table-responsive table { font-size: 0.9rem; } }
+</style>
+
+<!-- Importar Bootstrap Icons caso ainda não esteja no base.html -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+{% endblock %}

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{% block title %}Confeitaria{% endblock %}</title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+    {% block extra_css %}{% endblock %}
+
+<style>
+
+#acessibilidade-btn{
+    position: fixed;
+    bottom:20px;
+    right:20px;
+    width:60px;
+    height:60px;
+    z-index:9999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#0d6efd;
+    color:#fff;
+    border-radius:50%;
+    border:none;
+    box-shadow:0 4px 10px rgba(0,0,0,0.2);
+}
+
+#acessibilidade-menu{
+    position:fixed;
+    bottom:90px;
+    right:20px;
+    background:#fff;
+    border:1px solid #ccc;
+    border-radius:10px;
+    padding:10px;
+    width:200px;
+    z-index:9998;
+    opacity:0;
+    transform:translateY(20px);
+    transition:0.3s;
+    pointer-events:none;
+}
+
+#acessibilidade-menu.show{
+    opacity:1;
+    transform:translateY(0);
+    pointer-events:auto;
+}
+
+.alto-contraste{
+    background:#000 !important;
+    color:#fff !important;
+}
+
+.alto-contraste a{
+    color:#0ff !important;
+}
+
+.alto-contraste nav.navbar{
+    background:#000 !important;
+}
+
+.alto-contraste footer{
+    background:#000 !important;
+    color:#0ff !important;
+}
+
+.alto-contraste .card{
+    background:#000 !important;
+    color:#fff !important;
+    border:1px solid #0ff !important;
+}
+
+.alto-contraste .btn{
+    background:#0ff !important;
+    color:#000 !important;
+}
+
+.skip-link{
+    position:absolute;
+    left:-999px;
+    top:auto;
+}
+
+.skip-link:focus{
+    left:10px;
+    top:10px;
+    background:#000;
+    color:#fff;
+    padding:8px;
+    z-index:10000;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<!-- LINK DE ACESSIBILIDADE -->
+<a href="#conteudo-principal" class="skip-link">
+Pular para o conteúdo principal
+</a>
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-dark bg-primary shadow-sm" aria-label="Menu principal">
+
+<div class="container-fluid">
+
+<a class="navbar-brand" href="{% url 'home' %}">
+🍰 Confeitaria Silvia
+</a>
+
+{% if user.is_authenticated %}
+
+<ul class="navbar-nav ms-auto d-flex flex-row align-items-center">
+
+<li class="nav-item me-3">
+<a class="nav-link text-white" href="{% url 'home' %}">
+<i class="bi bi-house-door-fill"></i> Home
+</a>
+</li>
+
+<li class="nav-item me-3">
+<a class="nav-link text-white" href="{% url 'dashboard' %}">
+<i class="bi bi-bar-chart-fill"></i> Dashboard
+</a>
+</li>
+
+{% if is_admin %}
+
+<li class="nav-item me-3">
+<a class="nav-link text-white" href="{% url 'criar_usuario' %}">
+<i class="bi bi-person-plus"></i> Usuários
+</a>
+</li>
+
+{% endif %}
+
+<li class="nav-item">
+<a class="nav-link text-white" href="{% url 'logout' %}">
+<i class="bi bi-box-arrow-right"></i> Sair
+</a>
+</li>
+
+</ul>
+
+{% endif %}
+
+</div>
+
+</nav>
+
+<!-- CONTEÚDO -->
+<main id="conteudo-principal" class="container my-4">
+
+{% block content %}
+
+{% endblock %}
+
+</main>
+
+<!-- FOOTER -->
+<footer class="text-center py-3 bg-light mt-4 rounded" aria-label="Rodapé do sistema">
+
+Confeitaria Silvia - Sistema de Gestão
+
+</footer>
+
+<!-- BOTÃO ACESSIBILIDADE -->
+
+<button id="acessibilidade-btn"
+aria-label="Abrir menu de acessibilidade">
+
+<i class="bi bi-universal-access"></i>
+
+</button>
+
+<div id="acessibilidade-menu"
+aria-label="Menu de acessibilidade">
+
+<button id="contraste-btn"
+class="btn btn-dark btn-sm w-100 mb-2"
+aria-label="Ativar ou desativar modo de alto contraste">
+
+Alto Contraste
+
+</button>
+
+<button id="fonte-btn"
+class="btn btn-secondary btn-sm w-100 mb-2"
+aria-label="Aumentar tamanho da fonte">
+
+Aumentar Fonte
+
+</button>
+
+<button id="fonte-dim-btn"
+class="btn btn-secondary btn-sm w-100"
+aria-label="Diminuir tamanho da fonte">
+
+Diminuir Fonte
+
+</button>
+
+</div>
+
+<script>
+
+const btn = document.getElementById('acessibilidade-btn')
+const menu = document.getElementById('acessibilidade-menu')
+
+btn.onclick = () => {
+menu.classList.toggle('show')
+}
+
+document.getElementById('contraste-btn').onclick = () => {
+document.body.classList.toggle('alto-contraste')
+}
+
+document.getElementById('fonte-btn').onclick = () => {
+
+let size = parseInt(window.getComputedStyle(document.body).fontSize)
+
+document.body.style.fontSize = (size + 2) + 'px'
+
+}
+
+document.getElementById('fonte-dim-btn').onclick = () => {
+
+let size = parseInt(window.getComputedStyle(document.body).fontSize)
+
+document.body.style.fontSize = (size - 2) + 'px'
+
+}
+
+</script>
+
+</body>
+
+</html>
+```

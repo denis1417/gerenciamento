@@ -1,0 +1,235 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <h2 class="mb-4">📊 Dashboard do Sistema</h2>
+
+    <!-- ============================= -->
+    <!-- CARDS PRINCIPAIS -->
+    <!-- ============================= -->
+
+    <div class="row text-center mb-4">
+
+        <div class="col-md-4 mb-3">
+            <div class="card shadow border-primary">
+                <div class="card-body">
+                    <h6>Total de Produtos</h6>
+                    <h3 class="text-primary">{{ total_produtos|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-3">
+            <div class="card shadow border-success">
+                <div class="card-body">
+                    <h6>Total de Insumos</h6>
+                    <h3 class="text-success">{{ total_insumos|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-3">
+            <div class="card shadow border-dark">
+                <div class="card-body">
+                    <h6>Total de Colaboradores</h6>
+                    <h3 class="text-dark">{{ total_colaboradores|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ============================= -->
+    <!-- NOVOS CARDS DO PROJETO -->
+    <!-- ============================= -->
+
+    <div class="row text-center mb-4">
+
+        <div class="col-md-4 mb-3">
+            <div class="card shadow border-warning">
+                <div class="card-body">
+                    <h6>Produtos Prontos</h6>
+                    <h3 class="text-warning">{{ total_produtos_prontos|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-3">
+            <div class="card shadow border-danger">
+                <div class="card-body">
+                    <h6>Produtos Vencidos</h6>
+                    <h3 class="text-danger">{{ produtos_vencidos|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-3">
+            <div class="card shadow border-info">
+                <div class="card-body">
+                    <h6>Produtos Próximos do Vencimento</h6>
+                    <h3 class="text-info">{{ produtos_vencendo|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ============================= -->
+    <!-- GRÁFICOS -->
+    <!-- ============================= -->
+
+    <div class="row">
+
+        <!-- PRODUTOS -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow">
+                <div class="card-body">
+                    <h5 class="card-title text-center">Produtos</h5>
+                    <canvas id="graficoProdutos"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- ESTOQUE BAIXO -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow">
+                <div class="card-body">
+                    <h5 class="card-title text-center">Estoque Baixo</h5>
+                    <canvas id="graficoInsumos"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLABORADORES -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow">
+                <div class="card-body">
+                    <h5 class="card-title text-center">Colaboradores por Função</h5>
+                    <canvas id="graficoColaboradores"></canvas>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ============================= -->
+    <!-- BOTÃO RELATÓRIO -->
+    <!-- ============================= -->
+
+    <div class="text-center mt-4">
+
+        <a href="{% url 'relatorio_pdf' %}" class="btn btn-danger btn-lg shadow">
+            📄 Gerar Relatório em PDF
+        </a>
+
+    </div>
+
+</div>
+
+<!-- ============================= -->
+<!-- CHART.JS -->
+<!-- ============================= -->
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+
+    // =============================
+    // DADOS DO DJANGO
+    // =============================
+
+    const totalProdutos = Number("{{ total_produtos|default:'0' }}")
+    const produtosVencidos = Number("{{ produtos_vencidos|default:'0' }}")
+
+    const estoqueBaixo = JSON.parse('{{ estoque_baixo_json|escapejs }}')
+
+    const colaboradoresLabels = JSON.parse('{{ colaboradores_labels|escapejs }}')
+    const colaboradoresDados = JSON.parse('{{ colaboradores_dados|escapejs }}')
+
+    // =============================
+    // GRÁFICO PRODUTOS
+    // =============================
+
+    const ctxProdutos = document.getElementById('graficoProdutos')
+
+    if (ctxProdutos){
+
+        new Chart(ctxProdutos, {
+            type: 'pie',
+            data: {
+                labels: ['Produtos válidos','Produtos vencidos'],
+                datasets: [{
+                    data: [
+                        totalProdutos - produtosVencidos,
+                        produtosVencidos
+                    ]
+                }]
+            }
+        })
+
+    }
+
+    // =============================
+    // GRÁFICO ESTOQUE
+    // =============================
+
+    const ctxInsumos = document.getElementById('graficoInsumos')
+
+    if (ctxInsumos){
+
+        if (estoqueBaixo.length === 0){
+
+            new Chart(ctxInsumos, {
+                type: 'bar',
+                data:{
+                    labels:['Sem alerta'],
+                    datasets:[{
+                        label:'Estoque',
+                        data:[0]
+                    }]
+                }
+            })
+
+        }else{
+
+            new Chart(ctxInsumos,{
+                type:'bar',
+                data:{
+                    labels: estoqueBaixo.map(i => i.nome),
+                    datasets:[{
+                        label:'Quantidade Restante',
+                        data: estoqueBaixo.map(i => i.quantidade_total)
+                    }]
+                }
+            })
+
+        }
+
+    }
+
+    // =============================
+    // GRÁFICO COLABORADORES
+    // =============================
+
+    const ctxColaboradores = document.getElementById('graficoColaboradores')
+
+    if (ctxColaboradores){
+
+        new Chart(ctxColaboradores,{
+            type:'doughnut',
+            data:{
+                labels: colaboradoresLabels,
+                datasets:[{
+                    data: colaboradoresDados
+                }]
+            }
+        })
+
+    }
+
+</script>
+
+{% endblock %}

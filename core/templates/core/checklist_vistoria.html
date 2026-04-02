@@ -1,0 +1,43 @@
+{% extends "core/base.html" %}
+{% load static %}
+{% block title %}Checklist - {{ data_vistoria }}{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+
+    <!-- Botão Voltar -->
+    <a href="{% url 'relatorio_insumos' %}" class="btn btn-outline-secondary mb-3">
+        ⬅ Voltar para Relatório
+    </a>
+
+    <h2 class="mb-4 text-primary">📋 Checklist de {{ data_vistoria }}</h2>
+
+    <table class="table table-striped table-bordered">
+        <thead class="table-secondary">
+            <tr>
+                <th>Insumo</th>
+                <th>Retirado</th>
+                <th>Usado</th>
+                <th>Teórico</th>
+                <th>Real</th>
+                <th>Desperdício</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in itens %}
+            <tr>
+                <td>{{ item.insumo.nome }}</td>
+                <td>{{ item.quantidade_retirada }}</td>
+                <td>{{ item.quantidade_usada }}</td>
+                <td>{{ item.quantidade_teorica }}</td>
+                <td>{{ item.quantidade_real }}</td>
+                <td>{{ item.desperdicio }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <button class="btn btn-info mt-3" onclick="window.print()">🖨️ Imprimir Checklist</button>
+
+</div>
+{% endblock %}

@@ -1,0 +1,18 @@
+# Ambiente virtual
+venv/
+
+# Cache Python
+__pycache__/
+*.pyc
+
+# Banco local
+db.sqlite3
+
+# Backups e dumps
+*.json
+
+# Banco PostgreSQL local
+gerenciamento_db
+
+# Variáveis de ambiente
+.env

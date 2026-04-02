@@ -1,0 +1,14 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-danger">Confirmação de Exclusão</h2>
+    <p>Deseja realmente deletar a saída de <strong>{{ saida.insumo.nome }}</strong> ({{ saida.exibir_quantidade }})?</p>
+
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger btn-hover-3d">Confirmar</button>
+        <a href="{% url 'saida_insumo_list' %}" class="btn btn-secondary btn-hover-3d">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

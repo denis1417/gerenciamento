@@ -1,0 +1,35 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="container mt-5 text-center">
+    <h3 class="mb-4">Deseja realmente deletar <strong>{{ obj }}</strong>?</h3>
+
+    <!-- Botão para abrir o modal -->
+    <button type="button" class="btn btn-danger btn-lg" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
+        Sim, deletar
+    </button>
+    <a href="{% url 'colaboradores_list' %}" class="btn btn-secondary btn-lg">Cancelar</a>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="confirmDeleteLabel">Confirmação de exclusão</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        Tem certeza que deseja deletar <strong>{{ obj }}</strong>? Esta ação não pode ser desfeita.
+      </div>
+      <div class="modal-footer">
+        <form method="post" class="m-0">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Sim, deletar</button>
+        </form>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

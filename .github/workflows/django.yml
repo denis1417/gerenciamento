@@ -3,9 +3,12 @@ name: Django CI
 on:
   push:
     branches: ["main"]
-
   pull_request:
     branches: ["main"]
+
+# ⚡ Adicionando variável para rodar actions em Node.js 24
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
@@ -72,3 +75,11 @@ jobs:
 
       - name: Run tests
         run: python manage.py test
+
+      - name: Collect static files (optional)
+        run: python manage.py collectstatic --noinput
+
+      - name: Lint Python code
+        run: |
+          pip install flake8
+          flake8 .

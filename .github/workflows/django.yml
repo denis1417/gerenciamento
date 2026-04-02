@@ -79,6 +79,7 @@ jobs:
       - name: Collect static files (optional)
         run: python manage.py collectstatic --noinput
 
+
       - name: Lint Python code
         run: |
           pip install flake8

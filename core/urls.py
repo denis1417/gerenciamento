@@ -6,10 +6,12 @@ from .views import (
     ColaboradorViewSet,
     CriarPedidoView,
     PedidoListView,
+    PedidoAdminViewSet,
     InsumoViewSet,
     ProdutoVendaListView,
     ProdutoViewSet,
-    VendaViewSet
+    VendaPDVViewSet,
+    VendaAdminViewSet
 )
 
 # =========================================================
@@ -19,28 +21,24 @@ router = DefaultRouter()
 router.register(r'produtos', ProdutoViewSet)
 router.register(r'insumos', InsumoViewSet)
 router.register(r'colaboradores', ColaboradorViewSet)
-router.register(r'vendas', VendaViewSet, basename='vendas')
-
+router.register(r'vendas', VendaPDVViewSet, basename='vendas')
+router.register(r'pedidos-admin', PedidoAdminViewSet, basename='pedidos-admin')
+router.register(r'vendas-admin', VendaAdminViewSet, basename='vendas-admin')
 # =========================================================
 # URLS DO SISTEMA WEB
 # =========================================================
 urlpatterns = [
 
-    # ============================
     # LOGIN / LOGOUT
-    # ============================
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
 
-    # ============================
     # HOME / DASHBOARD
-    # ============================
     path('', views.home, name='home'),
     path('dashboard/', views.dashboard, name='dashboard'),
 
-    # ============================
+
     # USUÁRIOS
-    # ============================
     path('usuarios_create/', views.usuarios_create, name='criar_usuario'),
     path('usuarios/', views.usuarios_list, name='usuarios_list'),
     path('usuarios/<int:id>/editar/',
@@ -48,9 +46,7 @@ urlpatterns = [
     path('usuarios/<int:id>/deletar/',
          views.usuario_delete, name='usuario_delete'),
 
-    # ============================
     # COLABORADORES
-    # ============================
     path('colaboradores/', views.colaboradores_list, name='colaboradores_list'),
     path('colaboradores/novo/', views.colaboradores_create,
          name='colaboradores_create'),
@@ -61,50 +57,38 @@ urlpatterns = [
     path('colaboradores/<int:id>/excluir/',
          views.colaboradores_delete, name='colaboradores_delete'),
 
-    # ============================
     # INSUMOS
-    # ============================
     path('insumos/', views.insumos_list, name='insumos_list'),
     path('insumos/novo/', views.insumos_create, name='insumos_create'),
     path('insumos/<int:id>/editar/', views.insumos_edit, name='insumos_edit'),
     path('insumos/<int:id>/deletar/', views.insumos_delete, name='insumos_delete'),
 
-    # ============================
     # PRODUTOS PRONTOS
-    # ============================
     path('produtos/', views.produtos_list, name='produtos_list'),
     path('produtos/novo/', views.produtos_create, name='produtos_create'),
     path('produtos/<int:id>/editar/', views.produtos_edit, name='produtos_edit'),
     path('produtos/<int:id>/deletar/',
          views.produtos_delete, name='produtos_delete'),
 
-    # ============================
     # CATÁLOGO
-    # ============================
     path('catalogo/', views.catalogo_list, name='catalogo_list'),
     path('catalogo/novo/', views.catalogo_create, name='catalogo_create'),
     path('catalogo/<int:pk>/editar/', views.catalogo_edit, name='catalogo_edit'),
     path('catalogo/<int:pk>/deletar/',
          views.catalogo_delete, name='catalogo_delete'),
 
-    # ============================
     # FICHAS DE PRODUÇÃO
-    # ============================
     path('produtos/ficha/criar/', views.criar_ficha, name='criar_ficha'),
     path('produtos/ficha/<int:ficha_id>/visualizar/',
          views.visualizar_ficha, name='visualizar_ficha'),
 
-    # ============================
     # SAÍDA DE INSUMOS
-    # ============================
     path('saidas/', views.saida_insumo_list, name='saida_insumo_list'),
     path('saidas/novo/', views.saida_insumo_create, name='saida_insumo_create'),
     path('saidas/<int:id>/deletar/', views.saida_insumo_delete,
          name='saida_insumo_delete'),
 
-    # ============================
-    # RELATÓRIOS / CHECKLIST
-    # ============================
+    # RELATÓRIOS
     path('relatorio-insumos/', views.relatorio_insumos, name='relatorio_insumos'),
     path('relatorio/pdf/', views.relatorio_pdf, name='relatorio_pdf'),
     path('checklist/<str:data_vistoria>/',
@@ -112,21 +96,19 @@ urlpatterns = [
     path('checklist/<str:data_vistoria>/excluir/',
          views.excluir_checklist, name='excluir_checklist'),
 
-    # ============================
-    # API PERSONALIZADA (ACESSO INTERNO ADMIN)
-    # ============================
+    # =====================================================
+    # API PERSONALIZADA (PDV / EXTERNA)
+    # =====================================================
+
     path("api/produtos-venda/", ProdutoVendaListView.as_view(),
          name="api_produtos_venda"),
-
-    # Rota para CRIAR pedido (executa sua lógica de baixa de estoque)
     path("api/pedidos/criar/", CriarPedidoView.as_view(), name="api_pedidos_criar"),
-
-    # Rota para LISTAR pedidos (executa a listagem para o Admin)
     path("api/pedidos/listar/", PedidoListView.as_view(),
          name="api_pedidos_listar"),
 
-    # ============================
+
+    # =====================================================
     # ROUTER DRF
-    # ============================
+    # =====================================================
     path('api/', include(router.urls)),
 ]

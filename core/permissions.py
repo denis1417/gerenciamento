@@ -15,3 +15,20 @@ class IsAdminOrReadOnly(BasePermission):
 
         # Permitir apenas superusuário
         return request.user.is_superuser
+
+
+class IsAdminSistema(BasePermission):
+    """
+    Permite acesso apenas para colaboradores marcados como admin
+    """
+
+    def has_permission(self, request, view):
+        user = request.user
+
+        if not user.is_authenticated:
+            return False
+
+        if hasattr(user, 'colaborador'):
+            return user.colaborador.is_admin
+
+        return False

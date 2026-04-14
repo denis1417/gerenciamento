@@ -59,6 +59,8 @@ class ProdutoPronto(models.Model):
     data_validade = models.DateField()
     peso_produto = models.FloatField(default=0)
 
+    ativo = models.BooleanField(default=True)
+
     def __str__(self):
         return f"{self.catalogo.nome if self.catalogo else 'Sem catálogo'} - {self.quantidade} unidades"
 
@@ -89,6 +91,7 @@ class Colaborador(models.Model):
 
     def __str__(self):
         return self.nome
+    is_admin = models.BooleanField(default=False)
 
 
 # ------------------ INSUMO ------------------

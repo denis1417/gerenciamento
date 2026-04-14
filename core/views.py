@@ -25,6 +25,9 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import cm
+from core.services.estoque_service import baixar_estoque_fifo
+from decimal import Decimal
+from .models import Pedido, ProdutoVenda
 # =========================
 # ReportLab (PDF)
 # =========================
@@ -33,6 +36,8 @@ from reportlab.platypus import (Image, Paragraph, SimpleDocTemplate, Spacer,
 # =========================
 # Django REST Framework
 # =========================
+from django.utils import timezone
+from django.db.models import Exists, OuterRef, Sum
 from rest_framework import status, viewsets
 from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
@@ -44,6 +49,7 @@ from rest_framework.views import APIView
 from .decorators import check_group
 from .forms import (ColaboradorForm, FichaProducaoForm, InsumoForm,
                     ProdutoProntoForm, SaidaInsumoForm)
+from .permissions import IsAdminSistema
 # =========================
 # Django Core
 # =========================
@@ -735,64 +741,153 @@ def catalogo_delete(request, id):
 @login_required
 def dashboard(request):
 
+    hoje = date.today()
+
+    # =========================
+    # GERAIS
+    # =========================
     total_produtos = Produto.objects.count()
     total_insumos = Insumo.objects.count()
     total_colaboradores = Colaborador.objects.count()
     total_produtos_prontos = ProdutoPronto.objects.count()
 
-    # Produtos vencidos
+    # =========================
+    # VALIDADE
+    # =========================
     produtos_vencidos = ProdutoPronto.objects.filter(
-        data_validade__lt=date.today()
-    ).count()
+        data_validade__lt=hoje
+    ).aggregate(total=Sum('quantidade'))['total'] or 0
 
-    # Produtos próximos do vencimento
     produtos_vencendo = ProdutoPronto.objects.filter(
-        data_validade__lte=date.today() + timedelta(days=3),
-        data_validade__gte=date.today()
+        data_validade__gte=hoje,
+        data_validade__lte=hoje + timedelta(days=7)
     ).count()
 
-    # ==========================
-    # COLABORADORES POR FUNÇÃO
-    # ==========================
+    # =========================
+    # VENDAS (USANDO Pedido)
+    # =========================
+    total_vendas_hoje = Pedido.objects.filter(data__date=hoje).count()
 
-    colaboradores_por_funcao = (
-        Colaborador.objects
-        .values('funcao')
-        .annotate(total=Count('id'))
+    total_vendas_mes = Pedido.objects.filter(
+        data__month=hoje.month
+    ).count()
+
+    faturamento_hoje = Pedido.objects.filter(
+        data__date=hoje
+    ).aggregate(total=Sum('valor_total'))['total'] or 0
+
+    faturamento_mes = Pedido.objects.filter(
+        data__month=hoje.month
+    ).aggregate(total=Sum('valor_total'))['total'] or 0
+
+    ticket_medio = (
+        faturamento_mes / total_vendas_mes
+        if total_vendas_mes else 0
     )
 
-    colaboradores_labels = [c['funcao'] for c in colaboradores_por_funcao]
-    colaboradores_dados = [c['total'] for c in colaboradores_por_funcao]
+    crescimento = 0
 
-    # ==========================
+    # =========================
+    # MAIS VENDIDOS (CORRIGIDO)
+    # =========================
+    produtos_mais_vendidos = (
+        Pedido.objects
+        .values('produto_venda__produto_pronto__catalogo__nome')
+        .annotate(total_vendido=Sum('quantidade'))
+        .order_by('-total_vendido')[:10]
+    )
+
+    # =========================
     # ESTOQUE BAIXO
-    # ==========================
-
-    estoque_baixo = (
-        Insumo.objects
-        .filter(quantidade_total__lt=10)
-        .values('nome', 'quantidade_total')
+    # =========================
+    estoque_baixo = ProdutoPronto.objects.filter(
+        quantidade__lte=5
+    ).values(
+        'catalogo__nome',
+        'quantidade'
     )
 
-    # ==========================
-    # CONTEXTO
-    # ==========================
+    # =========================
+    # COLABORADORES (GRÁFICO)
+    # =========================
+    colaboradores_labels = []
+    colaboradores_dados = []
 
+# =========================
+#  PERDAS
+# =========================
+
+    lotes_vencidos = ProdutoPronto.objects.filter(
+        data_validade__lt=hoje,
+        quantidade__gt=0
+    )
+
+    total_itens_vencidos = lotes_vencidos.aggregate(
+        total=Sum('quantidade')
+    )['total'] or 0
+
+    perda_financeira = 0
+
+    for lote in lotes_vencidos:
+
+        venda = ProdutoVenda.objects.filter(
+            produto_pronto=lote,
+            ativo=True
+        ).first()
+
+        preco = float(venda.preco) if venda and venda.preco else 0
+
+        perda_financeira += float(preco) * float(lote.quantidade)
+
+    ranking_perdas = (
+        lotes_vencidos
+        .values('catalogo__nome')
+        .annotate(total_perdido=Sum('quantidade'))
+        .order_by('-total_perdido')[:10]
+    )
+
+    proximos_vencer = ProdutoPronto.objects.filter(
+        data_validade__gte=hoje,
+        data_validade__lte=hoje + timedelta(days=3)
+    )
+    # =========================
+    # CONTEXTO FINAL
+    # =========================
     context = {
 
+        # gerais
         "total_produtos": total_produtos,
         "total_insumos": total_insumos,
         "total_colaboradores": total_colaboradores,
         "total_produtos_prontos": total_produtos_prontos,
 
+        # validade
         "produtos_vencidos": produtos_vencidos,
         "produtos_vencendo": produtos_vencendo,
 
+        # vendas
+        "total_vendas_hoje": total_vendas_hoje,
+        "total_vendas_mes": total_vendas_mes,
+        "faturamento_hoje": faturamento_hoje,
+        "faturamento_mes": faturamento_mes,
+        "ticket_medio": float(ticket_medio),
+        "crescimento": float(crescimento),
+
+        # mais vendidos
+        "produtos_mais_vendidos": produtos_mais_vendidos,
+
+        # estoque
         "estoque_baixo_json": json.dumps(list(estoque_baixo)),
 
+        # gráficos colaboradores
         "colaboradores_labels": json.dumps(colaboradores_labels),
         "colaboradores_dados": json.dumps(colaboradores_dados),
 
+        #  perdas
+        "total_itens_vencidos": total_itens_vencidos,
+        "perda_financeira": round(perda_financeira, 2),
+        "ranking_perdas": ranking_perdas,
+        "proximos_vencer": proximos_vencer,
     }
 
     return render(request, "core/dashboard.html", context)
@@ -801,6 +896,8 @@ def dashboard(request):
 # =========================================================
 # FUNÇÃO DE CHECAGEM ADMIN (para decorators)
 # =========================================================
+
+
 def is_admin_user(user):
     return user.is_authenticated and user.is_staff
 
@@ -810,49 +907,93 @@ def is_admin_user(user):
 # =========================
 
 class ProdutoViewSet(viewsets.ModelViewSet):
+
     queryset = Produto.objects.all()
     serializer_class = ProdutoSerializer
+    authentication_classes = [SessionAuthentication, TokenAuthentication]
+
+    # =========================================================
+    # PERMISSÕES
+    # =========================================================
 
     def get_permissions(self):
-        """
-        Define permissões baseadas no tipo de autenticação:
-        - Se for sessão (frontend/admin): apenas IsAdminUser
-        - Se for token (externo): IsAuthenticated
-        """
         if any(isinstance(auth, SessionAuthentication) for auth in self.authentication_classes):
             return [IsAdminUser()]
         return [IsAuthenticated()]
 
-    def get_authenticators(self):
-        """
-        Escolhe autenticação baseada no endpoint de acesso.
-        """
-        if self.request and self.request.user.is_authenticated:
-            # usuário logado via frontend/admin
-            return [SessionAuthentication()]
-        # acesso externo: token obrigatório
-        return [TokenAuthentication()]
+    # =========================================================
+    # AUTENTICAÇÃO
+    # =========================================================
+    def list(self, request, *args, **kwargs):
 
+        hoje = timezone.now().date()
+
+        queryset = self.get_queryset().select_related('catalogo')
+
+        produtos_prontos = ProdutoPronto.objects.filter(
+            data_validade__gte=hoje,
+            quantidade__gt=0
+        ).select_related('catalogo')
+
+        estoque_map = defaultdict(int)
+        preco_map = {}
+
+        for p in produtos_prontos:
+            estoque_map[p.catalogo_id] += p.quantidade
+
+            if p.catalogo_id not in preco_map:
+                venda = ProdutoVenda.objects.filter(
+                    produto_pronto=p,
+                    ativo=True
+                ).first()
+
+                preco_map[p.catalogo_id] = venda.preco if venda else None
+
+                serializer = self.get_serializer(queryset, many=True)
+                data = serializer.data
+
+                for item in data:
+                    catalogo_id = Produto.objects.get(
+                        id=item['id']).catalogo_id
+
+                    item['quantidade_total'] = estoque_map.get(catalogo_id, 0)
+                    item['preco'] = preco_map.get(catalogo_id)
+
+                return Response(data)
+
+    # =========================================================
+    # RETRIEVE (DETALHE DO PRODUTO)
+    # =========================================================
     def retrieve(self, request, *args, **kwargs):
+
         produto = self.get_object()
+        serializer = self.get_serializer(produto)
+        data = serializer.data
+
+        hoje = timezone.now().date()
+
+        #  PEGA LOTE VÁLIDO MAIS PRÓXIMO (FIFO)
         produto_pronto = ProdutoPronto.objects.filter(
-            catalogo=produto.catalogo
-        ).first()
+            catalogo=produto.catalogo,
+            data_validade__gte=hoje
+        ).order_by('data_validade').first()
+
         if produto_pronto:
-            data = {
-                "id": produto.id,
-                "nome": produto.nome,
-                "codigo": produto.codigo,
-                "categoria": produto.categoria,
-                "quantidade_estoque": produto_pronto.quantidade,
-                "data_fabricacao": produto_pronto.data_fabricacao,
-                "data_validade": produto_pronto.data_validade,
-                "peso_produto": produto_pronto.peso_produto,
-                # preço inserido manualmente
-                "preco": getattr(produto, "preco", None),
-            }
-            return Response(data)
-        return super().retrieve(request, *args, **kwargs)
+            venda = ProdutoVenda.objects.filter(
+                produto_pronto=produto_pronto,
+                ativo=True
+            ).first()
+
+            data['preco'] = venda.preco if venda else None
+            data['quantidade_estoque'] = produto_pronto.quantidade
+            data['data_fabricacao'] = produto_pronto.data_fabricacao
+            data['data_validade'] = produto_pronto.data_validade
+            data['peso_produto'] = produto_pronto.peso_produto
+        else:
+            data['preco'] = None
+            data['quantidade_estoque'] = 0
+
+        return Response(data)
 
 
 class InsumoViewSet(viewsets.ModelViewSet):
@@ -887,7 +1028,7 @@ class ProdutoVendaListView(ListAPIView):
     permission_classes = [IsAdminUser]
 
     def get_queryset(self):
-        # Apenas produtos ativos e com estoque disponível
+        # Filtra apenas produtos ativos e com estoque total disponível
         return ProdutoVenda.objects.filter(
             ativo=True,
             produto_pronto__quantidade__gt=0
@@ -896,7 +1037,7 @@ class ProdutoVendaListView(ListAPIView):
 
 class PedidoListView(ListAPIView):
     """
-    API para LISTAR pedidos. ;)
+    API para listar pedidos.
     Apenas usuários administradores podem acessar.
     """
     serializer_class = PedidoSerializer
@@ -1126,64 +1267,92 @@ def relatorio_pdf(request):
 
 
 class CriarPedidoView(APIView):
+    """
+    API para criar um pedido real (PDV / App)
+    """
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     @transaction.atomic
     def post(self, request):
         produto_id = request.data.get("produto")
-        quantidade = int(request.data.get("quantidade"))
+        quantidade = request.data.get("quantidade")
 
-        produto_venda = ProdutoVenda.objects.get(id=produto_id)
+        if not produto_id or not quantidade:
+            return Response(
+                {"erro": "Produto e quantidade são obrigatórios."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # Verificar estoque total
+        try:
+            quantidade = int(quantidade)
+        except ValueError:
+            return Response(
+                {"erro": "Quantidade deve ser um número inteiro."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            produto_venda = ProdutoVenda.objects.get(id=produto_id, ativo=True)
+        except ProdutoVenda.DoesNotExist:
+            return Response(
+                {"erro": "Produto não encontrado ou inativo."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Estoque total disponível
         estoque_total = ProdutoPronto.objects.filter(
-            catalogo=produto_venda.produto_pronto.catalogo
+            catalogo=produto_venda.produto_pronto.catalogo,
+            data_validade__gte=timezone.now().date()
         ).aggregate(total=Sum("quantidade"))["total"] or 0
 
         if estoque_total < quantidade:
             return Response(
-                {"erro": "Estoque insuficiente"},
+                {"erro": f"Estoque insuficiente. Disponível: {estoque_total}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Dar baixa nos lotes (FIFO simples)
-        lotes = ProdutoPronto.objects.filter(
-            catalogo=produto_venda.produto_pronto.catalogo
-        ).order_by("data_validade")
+        try:
+            baixar_estoque_fifo(produto_venda, quantidade)
+        except ValueError as e:
+            return Response(
+                {"erro": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        restante = quantidade
-
-        for lote in lotes:
-            if restante <= 0:
-                break
-
-            if lote.quantidade >= restante:
-                lote.quantidade -= restante
-                lote.save()
-                restante = 0
-            else:
-                restante -= lote.quantidade
-                lote.quantidade = 0
-                lote.save()
-
-        Pedido.objects.create(
+        # Criar pedido
+        valor_total = produto_venda.preco * quantidade
+        pedido = Pedido.objects.create(
             produto_venda=produto_venda,
             quantidade=quantidade,
-            usuario=request.user  # Se você tiver o usuário no contexto
+            valor_unitario=produto_venda.preco,
+            valor_total=valor_total,
+            usuario=request.user
         )
 
-        return Response({"mensagem": "Pedido realizado com sucesso"})
+        return Response({
+            "mensagem": "Pedido realizado com sucesso",
+            "pedido_id": pedido.id,
+            "produto": produto_venda.produto_pronto.catalogo.nome,
+            "quantidade": quantidade,
+            "valor_unitario": produto_venda.preco,
+            "valor_total": valor_total,
+        }, status=status.HTTP_201_CREATED)
 
 
-class VendaViewSet(viewsets.ViewSet):
+class VendaPDVViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
+    #  LISTAR VENDAS (AGORA VAI FUNCIONAR GET)
+    def list(self, request):
+        pedidos = Pedido.objects.all().order_by('-data')
+        serializer = PedidoSerializer(pedidos, many=True)
+        return Response(serializer.data)
+
+    #  CRIAR VENDA (JÁ EXISTENTE)
     @transaction.atomic
     def create(self, request):
-        # -----------------------------
-        # Recebe código_externo em vez do id
-        # -----------------------------
+
         codigo = request.data.get("codigo_externo")
         quantidade = request.data.get("quantidade")
 
@@ -1201,9 +1370,6 @@ class VendaViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # -----------------------------
-        # Buscar ProdutoVenda pelo código externo
-        # -----------------------------
         try:
             produto_venda = ProdutoVenda.objects.get(
                 codigo_externo=codigo,
@@ -1215,9 +1381,6 @@ class VendaViewSet(viewsets.ViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # -----------------------------
-        # Verificar estoque disponível
-        # -----------------------------
         estoque_total = ProdutoPronto.objects.filter(
             catalogo=produto_venda.produto_pronto.catalogo,
             data_validade__gte=timezone.now().date()
@@ -1229,32 +1392,14 @@ class VendaViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # -----------------------------
-        # Baixa automática (FIFO)
-        # -----------------------------
-        produtos_estoque = ProdutoPronto.objects.filter(
-            catalogo=produto_venda.produto_pronto.catalogo,
-            data_validade__gte=timezone.now().date()
-        ).order_by("data_validade")
+        try:
+            baixar_estoque_fifo(produto_venda, quantidade)
+        except ValueError as e:
+            return Response(
+                {"erro": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        restante = quantidade
-
-        for item in produtos_estoque:
-            if restante <= 0:
-                break
-
-            if item.quantidade >= restante:
-                item.quantidade -= restante
-                item.save()
-                restante = 0
-            else:
-                restante -= item.quantidade
-                item.quantidade = 0
-                item.save()
-
-        # -----------------------------
-        # Criar Pedido
-        # -----------------------------
         valor_total = produto_venda.preco * quantidade
 
         pedido = Pedido.objects.create(
@@ -1264,9 +1409,6 @@ class VendaViewSet(viewsets.ViewSet):
             valor_total=valor_total
         )
 
-        # -----------------------------
-        # Retorno
-        # -----------------------------
         return Response(
             {
                 "mensagem": "Venda realizada com sucesso",
@@ -1278,3 +1420,21 @@ class VendaViewSet(viewsets.ViewSet):
             },
             status=status.HTTP_201_CREATED
         )
+
+
+class PedidoAdminViewSet(viewsets.ModelViewSet):
+    """
+    ModelViewSet para gerenciamento de pedidos no dashboard/admin
+    """
+    queryset = Pedido.objects.all()
+    serializer_class = PedidoSerializer
+    authentication_classes = [SessionAuthentication, TokenAuthentication]
+    permission_classes = [IsAdminUser]
+
+
+class VendaAdminViewSet(viewsets.ModelViewSet):
+
+    queryset = Pedido.objects.all()
+    serializer_class = PedidoSerializer
+    authentication_classes = [SessionAuthentication, TokenAuthentication]
+    permission_classes = [IsAdminSistema]

@@ -1,14 +1,23 @@
 from rest_framework import serializers
+from django.utils import timezone
+from django.db.models import Sum
 
-from .models import (Colaborador, Insumo, Pedido, Produto, ProdutoPronto,
-                     ProdutoVenda)
+from .models import (
+    Colaborador,
+    Insumo,
+    Pedido,
+    Produto,
+    ProdutoPronto,
+    ProdutoVenda
+)
 
+
+# =========================================================
+# PRODUTO
+# =========================================================
 
 class ProdutoSerializer(serializers.ModelSerializer):
-
     preco = serializers.SerializerMethodField()
-
-    # Campos do ProdutoPronto relacionados ao mesmo catálogo
     quantidade_pronta = serializers.SerializerMethodField()
     data_fabricacao_pronta = serializers.SerializerMethodField()
     data_validade_pronta = serializers.SerializerMethodField()
@@ -24,13 +33,26 @@ class ProdutoSerializer(serializers.ModelSerializer):
         ]
 
     # ========================
+    # LOTES VÁLIDOS (BASE DO SISTEMA)
+    # ========================
+    def get_lotes_catalogo(self, obj):
+        """
+        Retorna apenas lotes NÃO vencidos e com quantidade > 0
+        """
+        if obj.catalogo:
+            return ProdutoPronto.objects.filter(
+                catalogo=obj.catalogo,
+                data_validade__gte=timezone.now().date(),
+                quantidade__gt=0
+            )
+        return ProdutoPronto.objects.none()
+
+    # ========================
     # PREÇO DO PRODUTO
     # ========================
     def get_preco(self, obj):
-
-        produto_pronto = ProdutoPronto.objects.filter(
-            catalogo=obj.catalogo
-        ).first()
+        produto_pronto = self.get_lotes_catalogo(
+            obj).order_by('data_validade').first()
 
         if not produto_pronto:
             return None
@@ -40,38 +62,32 @@ class ProdutoSerializer(serializers.ModelSerializer):
             ativo=True
         ).first()
 
-        if venda:
-            return venda.preco
-
-        return None
+        return venda.preco if venda else None
 
     # ========================
-    # MÉTODOS PARA PRODUTOPRONTO
+    # DADOS DO PRODUTO PRONTO
     # ========================
-    def get_produto_pronto(self, obj):
-        """Retorna o primeiro ProdutoPronto do mesmo catálogo"""
-        if obj.catalogo:
-            return obj.catalogo.produtos.first()
-        return None
-
     def get_quantidade_pronta(self, obj):
-        produto_pronto = self.get_produto_pronto(obj)
-        return produto_pronto.quantidade if produto_pronto else None
+        lotes = self.get_lotes_catalogo(obj)
+        return sum(l.quantidade for l in lotes)
 
     def get_data_fabricacao_pronta(self, obj):
-        produto_pronto = self.get_produto_pronto(obj)
-        return produto_pronto.data_fabricacao if produto_pronto else None
+        lotes = self.get_lotes_catalogo(obj)
+        datas = [l.data_fabricacao for l in lotes if l.data_fabricacao]
+        return min(datas) if datas else None
 
     def get_data_validade_pronta(self, obj):
-        produto_pronto = self.get_produto_pronto(obj)
-        return produto_pronto.data_validade if produto_pronto else None
+        lotes = self.get_lotes_catalogo(obj)
+        datas = [l.data_validade for l in lotes if l.data_validade]
+        return min(datas) if datas else None  # mais próximo do vencimento
 
     def get_peso_produto_pronto(self, obj):
-        produto_pronto = self.get_produto_pronto(obj)
-        return produto_pronto.peso_produto if produto_pronto else None
+        lotes = self.get_lotes_catalogo(obj)
+        pesos = [l.peso_produto for l in lotes if l.peso_produto]
+        return sum(pesos) if pesos else None
 
     # ========================
-    # CRIAR / ATUALIZAR PRODUTOVENDA
+    # CREATE
     # ========================
     def create(self, validated_data):
         produtovenda_data = validated_data.pop('produtovenda', None)
@@ -82,8 +98,9 @@ class ProdutoSerializer(serializers.ModelSerializer):
             preco = produtovenda_data.get('preco')
 
             produto_pronto = ProdutoPronto.objects.filter(
-                catalogo=produto.catalogo
-            ).first()
+                catalogo=produto.catalogo,
+                data_validade__gte=timezone.now().date()
+            ).order_by('data_validade').first()
 
             if produto_pronto and preco:
                 ProdutoVenda.objects.create(
@@ -95,6 +112,9 @@ class ProdutoSerializer(serializers.ModelSerializer):
 
         return produto
 
+    # ========================
+    # UPDATE
+    # ========================
     def update(self, instance, validated_data):
         preco_data = validated_data.pop('produtovenda', None)
 
@@ -103,12 +123,29 @@ class ProdutoSerializer(serializers.ModelSerializer):
         instance.save()
 
         if preco_data:
-            ProdutoVenda.objects.update_or_create(
-                produto_pronto=self.get_produto_pronto(instance),
-                defaults={'preco': preco_data.get('preco', 0), 'ativo': True}
-            )
+            produto_pronto = ProdutoPronto.objects.filter(
+                catalogo=instance.catalogo,
+                data_validade__gte=timezone.now().date()
+            ).order_by('data_validade').first()
+
+            if produto_pronto:
+                ProdutoVenda.objects.update_or_create(
+                    produto_pronto=produto_pronto,
+                    defaults={
+                        'preco': preco_data.get('preco', 0),
+                        'ativo': True
+                    }
+                )
 
         return instance
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['data_validade'] = data.get('data_validade_pronta')
+        return data
+# =========================================================
+# INSUMO
+# =========================================================
 
 
 class InsumoSerializer(serializers.ModelSerializer):
@@ -117,16 +154,49 @@ class InsumoSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+# =========================================================
+# COLABORADOR
+# =========================================================
+
 class ColaboradorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Colaborador
         fields = '__all__'
 
 
+# =========================================================
+# PRODUTO VENDA
+# =========================================================
+
 class ProdutoVendaSerializer(serializers.ModelSerializer):
+
+    nome_produto = serializers.SerializerMethodField()
+    estoque_total = serializers.SerializerMethodField()
+
     class Meta:
         model = ProdutoVenda
-        fields = ["codigo_externo", "preco", "ativo"]
+        fields = [
+            'id',
+            'codigo_externo',
+            'nome_produto',
+            'preco',
+            'estoque_total',
+            'ativo'
+        ]
+
+    def get_nome_produto(self, obj):
+        return obj.produto_pronto.catalogo.nome
+
+    def get_estoque_total(self, obj):
+        total = ProdutoPronto.objects.filter(
+            catalogo=obj.produto_pronto.catalogo
+        ).aggregate(total=Sum('quantidade'))['total'] or 0
+
+        return int(total)
+
+# =========================================================
+# PEDIDO
+# =========================================================
 
 
 class PedidoSerializer(serializers.ModelSerializer):

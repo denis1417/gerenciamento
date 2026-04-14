@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 
 from decouple import config
+import dj_database_url
 
 # ========================
 # BASE DIR
@@ -88,33 +89,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'confeitaria.wsgi.application'
 
-# ========================
-# DATABASE
-# ========================
-
-DB_ENGINE = config('DB_ENGINE', default='django.db.backends.sqlite3')
-
-if DB_ENGINE == 'django.db.backends.postgresql':
-
-    DATABASES = {
-        'default': {
-            'ENGINE': DB_ENGINE,
-            'NAME': config('POSTGRES_DB', default='gerenciamento_db'),
-            'USER': config('POSTGRES_USER', default='postgres'),
-            'PASSWORD': config('POSTGRES_PASSWORD', default='postgres'),
-            'HOST': config('POSTGRES_HOST', default='localhost'),
-            'PORT': config('POSTGRES_PORT', default='5432'),
-        }
-    }
-
-else:
-
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+DATABASES = {
+    'default': dj_database_url.config(
+        default=f'sqlite:///{BASE_DIR / "db.sqlite3"}'
+    )
+}
 
 # ========================
 # PASSWORD VALIDATION

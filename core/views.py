@@ -1454,4 +1454,3 @@ def create_admin(request):
         user.save()
 
     return HttpResponse("admin criado")
-

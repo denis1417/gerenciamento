@@ -79,8 +79,7 @@ jobs:
       - name: Collect static files (optional)
         run: python manage.py collectstatic --noinput
 
-
       - name: Lint Python code
         run: |
-       pip install flake8
-       flake8 . --exclude=venv,*/migrations/* --ignore=E501,F401,F811,F841,E741,E226,E302,E722,W292,W391 || true
+          pip install flake8
+          flake8 . --exclude=venv,*/migrations/* --ignore=E501,F401,F811,F841,E741,E226,E302,E722,W292,W391 || true

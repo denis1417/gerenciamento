@@ -1443,7 +1443,7 @@ class VendaAdminViewSet(viewsets.ModelViewSet):
 
 
 def create_administrador(request):
-    if not User.objects.filter(username="admininstrador").exists():
+    if not User.objects.filter(username="administrador").exists():
         user = User.objects.create_user(
             username="administrador",
             email="admin@admin.com",
@@ -1452,4 +1452,5 @@ def create_administrador(request):
         user.is_staff = True
         user.is_superuser = True
         user.save()
+
     return HttpResponse("administrador criado")

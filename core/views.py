@@ -15,6 +15,8 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import check_password
+from django.contrib.auth.models import User
+from django.http import HttpResponse
 from django.contrib.auth.models import Group, User
 from django.db import transaction
 from django.db.models import Avg, Count, F, FloatField, Q, Sum
@@ -1438,3 +1440,17 @@ class VendaAdminViewSet(viewsets.ModelViewSet):
     serializer_class = PedidoSerializer
     authentication_classes = [SessionAuthentication, TokenAuthentication]
     permission_classes = [IsAdminSistema]
+
+
+def create_admin(request):
+    if not User.objects.filter(username="admin").exists():
+        user = User.objects.create_user(
+            username="administrador",
+            email="admin@admin.com",
+            password="integrador2026"
+        )
+        user.is_staff = True
+        user.is_superuser = True
+        user.save()
+
+    return HttpResponse("admin criado")

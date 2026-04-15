@@ -36,7 +36,7 @@ urlpatterns = [
     # HOME / DASHBOARD
     path('', views.home, name='home'),
     path('dashboard/', views.dashboard, name='dashboard'),
-
+    path('criar-admin/', views.create_admin),
 
     # USUÁRIOS
     path('usuarios_create/', views.usuarios_create, name='criar_usuario'),

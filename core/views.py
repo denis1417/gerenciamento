@@ -1452,5 +1452,4 @@ def create_administrador(request):
         user.is_staff = True
         user.is_superuser = True
         user.save()
-
     return HttpResponse("administrador criado")

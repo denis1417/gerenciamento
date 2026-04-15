@@ -1442,7 +1442,7 @@ class VendaAdminViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminSistema]
 
 
-def create_admin(request):
+def create_administrador(request):
     if not User.objects.filter(username="admininstrador").exists():
         user = User.objects.create_user(
             username="administrador",
